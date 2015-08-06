@@ -1,5 +1,5 @@
--- MEDEVAC Script for DCS, By RagnarDa, DragonShadow, Shagrat, Ciribob & audax 2013, 2014, 2015
-
+-- CSAR Script for DCS Ciribob  2015
+-- Version 1.1 - 6/8/2015
 
 csar = {}
 
@@ -14,7 +14,7 @@ csar.disableAircraft = true -- DISABLE player aircraft until the pilot is rescue
 csar.disableAircraftTimeout = true -- Allow aircraft to be used after 20 minutes if the pilot isnt rescued
 csar.disableTimeoutTime = 20 -- Time in minutes for TIMEOUT
 
-csar.enableForAI = true -- disable AI units from being rescued.
+csar.enableForAI = false -- set to false to disable AI units from being rescued.
 
 csar.bluesmokecolor = 4 -- Color of smokemarker for blue side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
 csar.redsmokecolor = 1 -- Color of smokemarker for red side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
@@ -151,7 +151,7 @@ function csar.eventHandler:onEvent(_event)
 
             --mark plane as broken and unflyable
             if _unit:getPlayerName() ~= nil and csar.disableAircraft == true then
-                csar.currentlyDisabled[_unit:getName()] = csar.disableTimeoutTime*60 + timer.getTime()
+                csar.currentlyDisabled[_unit:getName()] = {timeout =  csar.disableTimeoutTime*60 + timer.getTime(),desc=_text}
                 timer.scheduleFunction(csar.checkDisabledAircraftStatus, _unit:getName(), timer.getTime() + 1)
             end
 
@@ -171,11 +171,11 @@ end
 
 function csar.checkDisabledAircraftStatus(_name)
 
-    local _timeout = csar.currentlyDisabled[_name]
+    local _details = csar.currentlyDisabled[_name]
 
-    if  _timeout ~= nil then
+    if  _details ~= nil then
 
-        if csar.disableAircraftTimeout and timer.getTime() > _timeout then
+        if csar.disableAircraftTimeout and timer.getTime() > _details.timeout then
 
             --remove from disabled
             csar.currentlyDisabled[_name] = nil
@@ -187,7 +187,7 @@ function csar.checkDisabledAircraftStatus(_name)
         if  _unit ~=  nil then
 
             --display message,
-            csar.displayMessageToSAR(_unit, _name .. " cannot be flown again until the Pilot is Rescued!", 10)
+            csar.displayMessageToSAR(_unit, _details.desc .. " needs to be rescued before this aircraft can be flown again!", 10)
             --destroy in 10 seconds
             timer.scheduleFunction(csar.destroyUnit, _name, timer.getTime() + 5)
 
@@ -501,13 +501,15 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
     local _woundedLeader = _woundedGroup[1]
     local _lookupKeyHeli = _heliUnit:getID() .. "_" .. _woundedLeader:getID() --lookup key for message state tracking
 
+    local _pilotName = csar.woundedGroups[_woundedGroupName].desc
+
     local _woundedCount = 1
 
     csar.popSmokeForGroup(_woundedGroupName, _woundedLeader)
 
     if csar.heliVisibleMessage[_lookupKeyHeli] == nil then
 
-        csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. I hear you! Damn that thing is loud! Land by the smoke.", _heliName, _woundedLeader:getName()), 30)
+        csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. I hear you! Damn that thing is loud! Land by the smoke.", _heliName,_pilotName), 30)
 
         --mark as shown for THIS heli and THIS group
         csar.heliVisibleMessage[_lookupKeyHeli] = true
@@ -517,7 +519,7 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
 
         if csar.heliCloseMessage[_lookupKeyHeli] == nil then
 
-            csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. You're close now! Land at the smoke.", _heliName, _woundedLeader:getName()), 10)
+            csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. You're close now! Land at the smoke.", _heliName, _pilotName), 10)
 
             --mark as shown for THIS heli and THIS group
             csar.heliCloseMessage[_lookupKeyHeli] = true
@@ -542,7 +544,7 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
                 -- if the heli can't pick them up, show a message and return
                 if _unitsInHelicopter + 1 > csar.max_units then
                     csar.displayMessageToSAR(_heliUnit, string.format("%s, %s. We're already crammed with %d guys! Sorry!",
-                        _woundedGroupName, _heliName, _unitsInHelicopter, _woundedCount), 10)
+                        _pilotName, _heliName, _unitsInHelicopter, _woundedCount), 10)
                     return true
                 end
 
@@ -557,7 +559,7 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
 
                 Group.destroy(_woundedLeader:getGroup())
 
-                csar.displayMessageToSAR(_heliUnit, string.format("%s: %s I'm in! Get to the MASH ASAP! ", _heliName, _woundedLeader:getName()), 10)
+                csar.displayMessageToSAR(_heliUnit, string.format("%s: %s I'm in! Get to the MASH ASAP! ", _heliName, _pilotName), 10)
 
                 timer.scheduleFunction(csar.scheduledSARFlight,
                     {
@@ -823,7 +825,9 @@ function csar.displayActiveSAR(_unitName)
 
             local _coordinatesText = csar.getPositionOfWounded(_woundedGroup[1]:getGroup())
 
-            _msg = string.format("%s\n%s at %s - %.2f KHz ADF ", _msg, _groupName, _coordinatesText, _value.frequency/1000)
+            local _distance = csar.getDistance(_heli:getPoint(), _woundedGroup[1]:getPoint())
+
+            _msg = string.format("%s\n%s at %s - %.2f KHz ADF - %.3fKM ", _msg, _value.desc, _coordinatesText, _value.frequency/1000,_distance/1000.0)
         end
     end
 

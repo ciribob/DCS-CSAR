@@ -901,14 +901,11 @@ function csar.getClosetDownedPilot(_heli)
 
             local _tempWounded = csar.getWoundedGroup(_woundedName)
 
-            env.info(_woundedName)
-
             -- check group exists and not moving to someone else
             if #_tempWounded > 0 and (_tempWounded[1]:getCoalition() == _side) then
 
                 _distance = csar.getDistance(_heli:getPoint(), _tempWounded[1]:getPoint())
 
-                env.info(_woundedName.." ".._distance)
                 if _distance ~= nil and (_shortestDistance == -1 or _distance < _shortestDistance) then
 
 
@@ -916,7 +913,6 @@ function csar.getClosetDownedPilot(_heli)
                     _closetGroup = _tempWounded[1]
                     _closetGroupInfo = _groupInfo
 
-                    env.info(_woundedName.." ".._shortestDistance)
                 end
             end
     end
@@ -933,13 +929,6 @@ function csar.signalFlare(_unitName)
     end
 
    local _closet =  csar.getClosetDownedPilot(_heli)
-
-    if _closet ~= nil then
-        env.info("GOT CLOSEST")
-
-        env.info(_closet.distance)
-    end
-
 
     if _closet ~= nil and _closet.pilot ~= nil and _closet.distance < 1000.0 then
 

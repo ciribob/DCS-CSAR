@@ -1,5 +1,5 @@
 -- CSAR Script for DCS Ciribob  2015
--- Version 1.1 - 6/8/2015
+-- Version 1.2 - 16/8/2015
 
 csar = {}
 
@@ -61,6 +61,8 @@ csar.radioBeacons = {} -- all current beacons
 csar.max_units = 5 --number of pilots that can be carried
 
 csar.currentlyDisabled = {} --stored disabled aircraft
+
+csar.hoverStatus = {} -- tracks status of a helis hover above a downed pilot
 
 function csar.tableLength(T)
 
@@ -188,12 +190,12 @@ function csar.checkDisabledAircraftStatus(_name)
 
             --display message,
             csar.displayMessageToSAR(_unit, _details.desc .. " needs to be rescued before this aircraft can be flown again!", 10)
-            --destroy in 10 seconds
-            timer.scheduleFunction(csar.destroyUnit, _name, timer.getTime() + 5)
+            --destroy in 20 seconds
+            timer.scheduleFunction(csar.destroyUnit, _name, timer.getTime() + 20)
 
-            --queue up in 12 seconds
+            --queue up in 25 seconds
 
-            timer.scheduleFunction(csar.checkDisabledAircraftStatus, _name, timer.getTime() + 6)
+            timer.scheduleFunction(csar.checkDisabledAircraftStatus, _name, timer.getTime() + 25)
             return
         end
     else
@@ -494,6 +496,51 @@ function csar.popSmokeForGroup(_woundedGroupName, _woundedLeader)
     end
 end
 
+function csar.pickupUnit(_heliUnit,_pilotName,_woundedGroup,_woundedGroupName)
+
+    local _woundedLeader = _woundedGroup[1]
+
+    -- GET IN!
+    local _heliName = _heliUnit:getName()
+    local _groups = csar.inTransitGroups[_heliName]
+    local _unitsInHelicopter = csar.pilotsOnboard(_heliName)
+
+    -- init table if there is none for this helicopter
+    if not _groups then
+        csar.inTransitGroups[_heliName] = {}
+        _groups = csar.inTransitGroups[_heliName]
+    end
+
+    -- if the heli can't pick them up, show a message and return
+    if _unitsInHelicopter + 1 > csar.max_units then
+        csar.displayMessageToSAR(_heliUnit, string.format("%s, %s. We're already crammed with %d guys! Sorry!",
+            _pilotName, _heliName, _unitsInHelicopter, _unitsInHelicopter), 10)
+        return true
+    end
+
+    csar.inTransitGroups[_heliName][_woundedGroupName] =
+    {
+        originalGroup = csar.woundedGroups[_woundedGroupName].originalGroup,
+        originalUnit = csar.woundedGroups[_woundedGroupName].originalUnit,
+        woundedGroup = _woundedGroupName,
+        side = _heliUnit:getCoalition(),
+        desc = csar.woundedGroups[_woundedGroupName].desc
+    }
+
+    Group.destroy(_woundedLeader:getGroup())
+
+    csar.displayMessageToSAR(_heliUnit, string.format("%s: %s I'm in! Get to the MASH ASAP! ", _heliName, _pilotName), 10)
+
+    timer.scheduleFunction(csar.scheduledSARFlight,
+        {
+            heliName = _heliUnit:getName(),
+            groupName = _woundedGroupName
+        },
+        timer.getTime() + 1)
+
+    return true
+end
+
 
 -- Helicopter is within 3km
 function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGroup, _woundedGroupName)
@@ -505,11 +552,13 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
 
     local _woundedCount = 1
 
+    local _reset = true
+
     csar.popSmokeForGroup(_woundedGroupName, _woundedLeader)
 
     if csar.heliVisibleMessage[_lookupKeyHeli] == nil then
 
-        csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. I hear you! Damn that thing is loud! Land by the smoke.", _heliName,_pilotName), 30)
+        csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. I hear you! Damn that thing is loud! Land or hover by the smoke.", _heliName,_pilotName), 30)
 
         --mark as shown for THIS heli and THIS group
         csar.heliVisibleMessage[_lookupKeyHeli] = true
@@ -519,60 +568,61 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
 
         if csar.heliCloseMessage[_lookupKeyHeli] == nil then
 
-            csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. You're close now! Land at the smoke.", _heliName, _pilotName), 10)
+            csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. You're close now! Land or hover at the smoke.", _heliName, _pilotName), 10)
 
             --mark as shown for THIS heli and THIS group
             csar.heliCloseMessage[_lookupKeyHeli] = true
         end
 
         -- have we landed close enough?
-        if _heliUnit:inAir() == false then
+        if csar.inAir(_heliUnit) == false then
 
             -- if you land on them, doesnt matter if they were heading to someone else as you're closer, you win! :)
             if (_distance < csar.loadDistance) then
-                -- GET IN!
-                local _heliName = _heliUnit:getName()
-                local _groups = csar.inTransitGroups[_heliName]
-                local _unitsInHelicopter = csar.pilotsOnboard(_heliName)
 
-                -- init table if there is none for this helicopter
-                if not _groups then
-                    csar.inTransitGroups[_heliName] = {}
-                    _groups = csar.inTransitGroups[_heliName]
-                end
-
-                -- if the heli can't pick them up, show a message and return
-                if _unitsInHelicopter + 1 > csar.max_units then
-                    csar.displayMessageToSAR(_heliUnit, string.format("%s, %s. We're already crammed with %d guys! Sorry!",
-                        _pilotName, _heliName, _unitsInHelicopter, _woundedCount), 10)
-                    return true
-                end
-
-                csar.inTransitGroups[_heliName][_woundedGroupName] =
-                {
-                    originalGroup = csar.woundedGroups[_woundedGroupName].originalGroup,
-                    originalUnit = csar.woundedGroups[_woundedGroupName].originalUnit,
-                    woundedGroup = _woundedGroupName,
-                    side = _heliUnit:getCoalition(),
-                    desc = csar.woundedGroups[_woundedGroupName].desc
-                }
-
-                Group.destroy(_woundedLeader:getGroup())
-
-                csar.displayMessageToSAR(_heliUnit, string.format("%s: %s I'm in! Get to the MASH ASAP! ", _heliName, _pilotName), 10)
-
-                timer.scheduleFunction(csar.scheduledSARFlight,
-                    {
-                        heliName = _heliUnit:getName(),
-                        groupName = _woundedGroupName
-                    },
-                    timer.getTime() + 1)
-                return false
+                return csar.pickupUnit(_heliUnit,_pilotName,_woundedGroup,_woundedGroupName)
             end
 
         else
 
+            local _unitsInHelicopter = csar.pilotsOnboard(_heliName)
+
+            if  csar.inAir(_heliUnit) and _unitsInHelicopter + 1 <= csar.max_units then
+
+                if _distance < 8.0  then
+
+                    --check height!
+                    local _height = _heliUnit:getPoint().y - _woundedLeader:getPoint().y
+
+                    if _height  <= 20.0 then
+
+                        local _time = csar.hoverStatus[_lookupKeyHeli]
+
+                        if _time == nil then
+                            csar.hoverStatus[_lookupKeyHeli] = 10
+                            _time = 10
+                        else
+                            _time = csar.hoverStatus[_lookupKeyHeli] - 1
+                            csar.hoverStatus[_lookupKeyHeli] = _time
+                        end
+
+                        if _time > 0 then
+                            csar.displayMessageToSAR(_heliUnit, "Hovering above " .. _pilotName .. ". \n\nHold hover for " .. _time .. " seconds to winch them up. \n\nIf the countdown stops you're too far away!", 10)
+                        else
+                            csar.hoverStatus[_lookupKeyHeli] = nil
+                            return csar.pickupUnit(_heliUnit,_pilotName,_woundedGroup,_woundedGroupName)
+                        end
+                        _reset = false
+                    else
+                        csar.displayMessageToSAR(_heliUnit, "Too high to winch " .. _pilotName .. " \nReduce height and hover for 10 seconds!", 5)
+                    end
+                end
+            end
         end
+    end
+
+    if _reset then
+        csar.hoverStatus[_lookupKeyHeli] = nil
     end
 
     return true
@@ -724,6 +774,9 @@ function csar.delayedHelpMessage(_args)
 
         if _heli ~= nil and #csar.getWoundedGroup(_injuredGroupName) > 0 then
             csar.displayMessageToSAR(_heli, _text, csar.messageTime)
+
+            trigger.action.outSoundForGroup(_heli:getGroup():getID(), "CSAR.ogg")
+
         else
             env.info("No Active Heli or Group DEAD")
         end
@@ -1086,6 +1139,20 @@ function csar.generateADFFrequency()
 
     return _vhf
     --- return {uhf=_uhf,vhf=_vhf}
+end
+
+function csar.inAir(_heli)
+
+    if _heli:inAir() == false then
+        return false
+    end
+
+    -- less than 5 cm/s a second so landed
+    -- BUT AI can hold a perfect hover so ignore AI
+    if mist.vec.mag(_heli:getVelocity()) < 0.05 and _heli:getPlayerName() ~= nil then
+        return false
+    end
+    return true
 end
 
 csar.generateVHFrequencies()

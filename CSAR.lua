@@ -216,76 +216,76 @@ end
 
 csar.addBeaconToGroup = function(_woundedGroupName, _freq)
 
-        local _group = Group.getByName(_woundedGroupName)
+    local _group = Group.getByName(_woundedGroupName)
 
-        if _group == nil then
+    if _group == nil then
 
-            --return frequency to pool of available
-            for _i, _current in ipairs(csar.usedVHFFrequencies) do
-                if _current == _freq then
-                    table.insert(ctld.freeVHFFrequencies, _freq)
-                    table.remove(ctld.usedVHFFrequencies, _i)
-                end
+        --return frequency to pool of available
+        for _i, _current in ipairs(csar.usedVHFFrequencies) do
+            if _current == _freq then
+                table.insert(ctld.freeVHFFrequencies, _freq)
+                table.remove(ctld.usedVHFFrequencies, _i)
             end
-
-            return
         end
 
---        local _coordinatesText =  string.format("%s at %s - %.2f KHz ADF ", _woundedGroupName, csar.getPositionOfWounded(_group), _freq/1000)
---
---        local _setFrequency = {
---            ["enabled"] = true,
---            ["auto"] = false,
---            ["id"] = "WrappedAction",
---            ["number"] = 1, -- first task
---            ["params"] = {
---                ["action"] = {
---                    ["id"] = "SetFrequency",
---                    ["params"] = {
---                        ["modulation"] = 0, -- 0 is AM 1 is FM --if FM you cant read the message... might be the only fix to stop FC3 aircraft hearing it... :(
---                        ["frequency"] =_freq,
---                    },
---                },
---            },
---        }
---
---        local _setupDetails = {
---            ["enabled"] = true,
---            ["auto"] = false,
---            ["id"] = "WrappedAction",
---            ["number"] = 2, -- second task
---            ["params"] = {
---                ["action"] = {
---                    ["id"] = "TransmitMessage",
---                    ["params"] = {
---                        ["loop"] = true, --false works too
---                        ["subtitle"] = _coordinatesText, --_text
---                        ["duration"] =  60, -- reset every 60 seconds --used to have timer.getTime() +60
---                        ["file"] = csar.radioSound,
---                    },
---                },
---            }
---        }
---
---        local _groupController = _group:getController()
---
---        --reset!
---        _groupController:resetTask()
---
---       _groupController:setTask(_setFrequency)
---       _groupController:setTask(_setupDetails)
---
---        --Make the unit NOT engage
---       _groupController:setOption(AI.Option.Ground.id.ROE, AI.Option.Ground.val.ROE.WEAPON_HOLD)
+        return
+    end
 
-        trigger.action.radioTransmission(csar.radioSound, _group:getUnit(1):getPoint(), 0, false, _freq, 1000)
+    --        local _coordinatesText =  string.format("%s at %s - %.2f KHz ADF ", _woundedGroupName, csar.getPositionOfWounded(_group), _freq/1000)
+    --
+    --        local _setFrequency = {
+    --            ["enabled"] = true,
+    --            ["auto"] = false,
+    --            ["id"] = "WrappedAction",
+    --            ["number"] = 1, -- first task
+    --            ["params"] = {
+    --                ["action"] = {
+    --                    ["id"] = "SetFrequency",
+    --                    ["params"] = {
+    --                        ["modulation"] = 0, -- 0 is AM 1 is FM --if FM you cant read the message... might be the only fix to stop FC3 aircraft hearing it... :(
+    --                        ["frequency"] =_freq,
+    --                    },
+    --                },
+    --            },
+    --        }
+    --
+    --        local _setupDetails = {
+    --            ["enabled"] = true,
+    --            ["auto"] = false,
+    --            ["id"] = "WrappedAction",
+    --            ["number"] = 2, -- second task
+    --            ["params"] = {
+    --                ["action"] = {
+    --                    ["id"] = "TransmitMessage",
+    --                    ["params"] = {
+    --                        ["loop"] = true, --false works too
+    --                        ["subtitle"] = _coordinatesText, --_text
+    --                        ["duration"] =  60, -- reset every 60 seconds --used to have timer.getTime() +60
+    --                        ["file"] = csar.radioSound,
+    --                    },
+    --                },
+    --            }
+    --        }
+    --
+    --        local _groupController = _group:getController()
+    --
+    --        --reset!
+    --        _groupController:resetTask()
+    --
+    --       _groupController:setTask(_setFrequency)
+    --       _groupController:setTask(_setupDetails)
+    --
+    --        --Make the unit NOT engage
+    --       _groupController:setOption(AI.Option.Ground.id.ROE, AI.Option.Ground.val.ROE.WEAPON_HOLD)
 
-        timer.scheduleFunction(csar.refreshRadioBeacon, { _woundedGroupName, _freq }, timer.getTime() + 30)
+    trigger.action.radioTransmission(csar.radioSound, _group:getUnit(1):getPoint(), 0, false, _freq, 1000)
+
+    timer.scheduleFunction(csar.refreshRadioBeacon, { _woundedGroupName, _freq }, timer.getTime() + 30)
 end
 
 csar.refreshRadioBeacon = function(_args)
 
-   csar.addBeaconToGroup(_args[1],_args[2])
+    csar.addBeaconToGroup(_args[1],_args[2])
 end
 
 csar.addSpecialParametersToGroup = function(_spawnedGroup)
@@ -440,7 +440,7 @@ function csar.checkWoundedGroupStatus(_argument)
             -- stop wounded moving, head back to smoke as target heli is DEAD
 
             -- in transit cleanup
-          --  csar.inTransitGroups[_heliName] = nil
+            --  csar.inTransitGroups[_heliName] = nil
             return
         end
 
@@ -887,6 +887,74 @@ function csar.displayActiveSAR(_unitName)
     csar.displayMessageToSAR(_heli, _msg, 20)
 end
 
+
+function csar.getClosetDownedPilot(_heli)
+
+    local _side = _heli:getCoalition()
+
+    local _closetGroup = nil
+    local _shortestDistance = -1
+    local _distance = 0
+    local _closetGroupInfo = nil
+
+    for _woundedName, _groupInfo in pairs(csar.woundedGroups) do
+
+            local _tempWounded = csar.getWoundedGroup(_woundedName)
+
+            env.info(_woundedName)
+
+            -- check group exists and not moving to someone else
+            if #_tempWounded > 0 and (_tempWounded[1]:getCoalition() == _side) then
+
+                _distance = csar.getDistance(_heli:getPoint(), _tempWounded[1]:getPoint())
+
+                env.info(_woundedName.." ".._distance)
+                if _distance ~= nil and (_shortestDistance == -1 or _distance < _shortestDistance) then
+
+
+                    _shortestDistance = _distance
+                    _closetGroup = _tempWounded[1]
+                    _closetGroupInfo = _groupInfo
+
+                    env.info(_woundedName.." ".._shortestDistance)
+                end
+            end
+    end
+
+    return {pilot=_closetGroup,distance=_shortestDistance,groupInfo=_closetGroupInfo}
+end
+
+function csar.signalFlare(_unitName)
+
+    local _heli = csar.getSARHeli(_unitName)
+
+    if _heli == nil then
+        return
+    end
+
+   local _closet =  csar.getClosetDownedPilot(_heli)
+
+    if _closet ~= nil then
+        env.info("GOT CLOSEST")
+
+        env.info(_closet.distance)
+    end
+
+
+    if _closet ~= nil and _closet.pilot ~= nil and _closet.distance < 1000.0 then
+
+        local _clockDir = csar.getClockDirection(_heli,_closet.pilot)
+
+        local _msg = string.format("%s - %.2f KHz ADF - %.3fM - Popping Signal Flare at your %s ",  _closet.groupInfo.desc,  _closet.groupInfo.frequency/1000,_closet.distance,_clockDir)
+        csar.displayMessageToSAR(_heli, _msg, 20)
+
+        trigger.action.signalFlare(_closet.pilot:getPoint(),1, 0 )
+    else
+        csar.displayMessageToSAR(_heli, "No Pilots within 1KM", 20)
+    end
+
+end
+
 function csar.displayToAllSAR(_message, _side, _ignore)
 
     for _, _unitName in pairs(csar.csarUnits) do
@@ -987,6 +1055,8 @@ function csar.addMedevacMenuItem()
                     _unitName)
 
                 missionCommands.addCommandForGroup(_groupId, "Check Onboard", _rootPath, csar.checkOnboard,_unitName)
+
+                missionCommands.addCommandForGroup(_groupId, "Request Signal Flare", _rootPath, csar.signalFlare,_unitName)
             end
         else
             -- env.info(string.format("unit nil %s",_unitName))
@@ -1155,6 +1225,37 @@ function csar.inAir(_heli)
     return true
 end
 
+function csar.getClockDirection(_heli, _crate)
+
+    -- Source: Helicopter Script - Thanks!
+
+    local _position = _crate:getPosition().p -- get position of crate
+    local _playerPosition = _heli:getPosition().p -- get position of helicopter
+    local _relativePosition = mist.vec.sub(_position, _playerPosition)
+
+    local _playerHeading = mist.getHeading(_heli) -- the rest of the code determines the 'o'clock' bearing of the missile relative to the helicopter
+
+    local _headingVector = { x = math.cos(_playerHeading), y = 0, z = math.sin(_playerHeading) }
+
+    local _headingVectorPerpendicular = { x = math.cos(_playerHeading + math.pi / 2), y = 0, z = math.sin(_playerHeading + math.pi / 2) }
+
+    local _forwardDistance = mist.vec.dp(_relativePosition, _headingVector)
+
+    local _rightDistance = mist.vec.dp(_relativePosition, _headingVectorPerpendicular)
+
+    local _angle = math.atan2(_rightDistance, _forwardDistance) * 180 / math.pi
+
+    if _angle < 0 then
+        _angle = 360 + _angle
+    end
+    _angle = math.floor(_angle * 12 / 360 + 0.5)
+    if _angle == 0 then
+        _angle = 12
+    end
+
+    return _angle
+end
+
 csar.generateVHFrequencies()
 
 -- Schedule timer to add radio item
@@ -1163,4 +1264,3 @@ timer.scheduleFunction(csar.addMedevacMenuItem, nil, timer.getTime() + 5)
 world.addEventHandler(csar.eventHandler)
 
 env.info("Medevac event handler added")
-

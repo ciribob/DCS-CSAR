@@ -1,5 +1,6 @@
 -- CSAR Script for DCS Ciribob  2015
--- Version 1.3 - 10/9/2015
+-- Version 1.4 - 12/10/2015
+-- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 
 csar = {}
 
@@ -12,8 +13,8 @@ csar.redmash = { "RedMASH #1", "RedMASH #2" } -- The unit that serves as MASH fo
 csar.disableAircraft = true -- DISABLE player aircraft until the pilot is rescued?
 
 csar.disableIfNoEjection = false -- if true disables aircraft even if the pilot doesnt eject
-                                    -- - I recommend you leave the option on below otherwise the
-                                    -- aircraft will be disabled for the duration of the mission
+-- - I recommend you leave the option on below otherwise the
+-- aircraft will be disabled for the duration of the mission
 
 csar.disableAircraftTimeout = true -- Allow aircraft to be used after 20 minutes if the pilot isnt rescued
 csar.disableTimeoutTime = 20 -- Time in minutes for TIMEOUT
@@ -638,14 +639,14 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
                         end
 
                         if _time > 0 then
-                            csar.displayMessageToSAR(_heliUnit, "Hovering above " .. _pilotName .. ". \n\nHold hover for " .. _time .. " seconds to winch them up. \n\nIf the countdown stops you're too far away!", 10)
+                            csar.displayMessageToSAR(_heliUnit, "Hovering above " .. _pilotName .. ". \n\nHold hover for " .. _time .. " seconds to winch them up. \n\nIf the countdown stops you're too far away!", 10,true)
                         else
                             csar.hoverStatus[_lookupKeyHeli] = nil
                             return csar.pickupUnit(_heliUnit,_pilotName,_woundedGroup,_woundedGroupName)
                         end
                         _reset = false
                     else
-                        csar.displayMessageToSAR(_heliUnit, "Too high to winch " .. _pilotName .. " \nReduce height and hover for 10 seconds!", 5)
+                        csar.displayMessageToSAR(_heliUnit, "Too high to winch " .. _pilotName .. " \nReduce height and hover for 10 seconds!", 5,true)
                     end
                 end
             end
@@ -820,10 +821,13 @@ function csar.delayedHelpMessage(_args)
     return nil
 end
 
+function csar.displayMessageToSAR(_unit, _text, _time,_clear)
 
-function csar.displayMessageToSAR(_unit, _text, _time)
-
-    trigger.action.outTextForGroup(_unit:getGroup():getID(), _text, _time)
+    if _clear == true then
+        trigger.action.outTextForGroup(_unit:getGroup():getID(), _text, _time,_clear)
+    else
+        trigger.action.outTextForGroup(_unit:getGroup():getID(), _text, _time)
+    end
 end
 
 function csar.getWoundedGroup(_groupName)

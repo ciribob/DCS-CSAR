@@ -1,11 +1,11 @@
 -- CSAR Script for DCS Ciribob  2015
--- Version 1.4 - 12/10/2015
+-- Version 1.5 - 03/10/2015
 -- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 
 csar = {}
 
 -- SETTINGS FOR MISSION DESIGNER vvvvvvvvvvvvvvvvvv
-csar.csarUnits = { "MEDEVAC #1", "MEDEVAC #2", "MEDEVAC #3", "MEDEVAC #4", "MEDEVAC #5", "MEDEVAC RED #1" } -- List of all the MEDEVAC _UNIT NAMES_ (the line where it says "Pilot" in the ME)!
+csar.csarUnits = { "MEDEVAC #1", "MEDEVAC #2", "MEDEVAC #3", "MEDEVAC #4", "MEDEVAC #5", "MEDEVAC RED #1", "MEDEVAC BLUE #1" } -- List of all the MEDEVAC _UNIT NAMES_ (the line where it says "Pilot" in the ME)!
 
 csar.bluemash = { "BlueMASH #1", "BlueMASH #2" } -- The unit that serves as MASH for the blue side
 csar.redmash = { "RedMASH #1", "RedMASH #2" } -- The unit that serves as MASH for the red side
@@ -25,6 +25,7 @@ csar.enableForAI = false -- set to false to disable AI units from being rescued.
 
 csar.bluesmokecolor = 4 -- Color of smokemarker for blue side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
 csar.redsmokecolor = 1 -- Color of smokemarker for red side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
+
 
 csar.requestdelay = 2 -- Time in seconds before the survivors will request Medevac
 
@@ -214,8 +215,11 @@ function csar.eventHandler:onEvent(_event)
                 end
             end
 
+            --fix for :getGroup not working in 1.5
+            local _originalGroupName = mist.DBs.unitsById[tonumber(_unit:getID())].groupName
+
             --store the old group under the new group name
-            csar.woundedGroups[_spawnedGroup:getName()] = { originalGroup = _unit:getGroup():getName(), side = _spawnedGroup:getCoalition(), originalUnit = _unit:getName(), frequency= _freq, desc = _text }
+            csar.woundedGroups[_spawnedGroup:getName()] = { originalGroup = _originalGroupName, side = _spawnedGroup:getCoalition(), originalUnit = _unit:getName(), frequency= _freq, desc = _text }
 
             csar.initSARForPilot(_spawnedGroup,_freq)
 
@@ -302,15 +306,17 @@ csar.addBeaconToGroup = function(_woundedGroupName, _freq)
         --return frequency to pool of available
         for _i, _current in ipairs(csar.usedVHFFrequencies) do
             if _current == _freq then
-                table.insert(ctld.freeVHFFrequencies, _freq)
-                table.remove(ctld.usedVHFFrequencies, _i)
+                table.insert(csar.freeVHFFrequencies, _freq)
+                table.remove(csar.usedVHFFrequencies, _i)
             end
         end
 
         return
     end
 
-    trigger.action.radioTransmission(csar.radioSound, _group:getUnit(1):getPoint(), 0, false, _freq, 1000)
+    local _sound = "l10n/DEFAULT/"..csar.radioSound
+
+    trigger.action.radioTransmission(_sound, _group:getUnit(1):getPoint(), 0, false, _freq, 1000)
 
     timer.scheduleFunction(csar.refreshRadioBeacon, { _woundedGroupName, _freq }, timer.getTime() + 30)
 end
@@ -807,7 +813,12 @@ function csar.delayedHelpMessage(_args)
         if _heli ~= nil and #csar.getWoundedGroup(_injuredGroupName) > 0 then
             csar.displayMessageToSAR(_heli, _text, csar.messageTime)
 
-            trigger.action.outSoundForGroup(_heli:getGroup():getID(), "CSAR.ogg")
+
+            local _groupId = csar.getGroupId(_heli)
+
+            if _groupId then
+                trigger.action.outSoundForGroup(_groupId, "l10n/DEFAULT/CSAR.ogg")
+            end
 
         else
             env.info("No Active Heli or Group DEAD")
@@ -823,11 +834,16 @@ end
 
 function csar.displayMessageToSAR(_unit, _text, _time,_clear)
 
-    if _clear == true then
-        trigger.action.outTextForGroup(_unit:getGroup():getID(), _text, _time,_clear)
-    else
-        trigger.action.outTextForGroup(_unit:getGroup():getID(), _text, _time)
+    local _groupId = csar.getGroupId(_unit)
+
+    if _groupId then
+        if _clear == true then
+            trigger.action.outTextForGroup(_groupId, _text, _time,_clear)
+        else
+            trigger.action.outTextForGroup(_groupId, _text, _time)
+        end
     end
+
 end
 
 function csar.getWoundedGroup(_groupName)
@@ -1067,20 +1083,23 @@ function csar.addMedevacMenuItem()
 
         if _unit ~= nil then
 
-            local _groupId = _unit:getGroup():getID()
+            local _groupId = csar.getGroupId(_unit)
 
-            if csar.addedTo[tostring(_groupId)] == nil then
+            if _groupId then
 
-                csar.addedTo[tostring(_groupId)] = true
+                if csar.addedTo[tostring(_groupId)] == nil then
 
-                local _rootPath = missionCommands.addSubMenuForGroup(_groupId, "CSAR")
+                    csar.addedTo[tostring(_groupId)] = true
 
-                missionCommands.addCommandForGroup(_groupId, "List Active CSAR", _rootPath,  csar.displayActiveSAR,
-                    _unitName)
+                    local _rootPath = missionCommands.addSubMenuForGroup(_groupId, "CSAR")
 
-                missionCommands.addCommandForGroup(_groupId, "Check Onboard", _rootPath, csar.checkOnboard,_unitName)
+                    missionCommands.addCommandForGroup(_groupId, "List Active CSAR", _rootPath,  csar.displayActiveSAR,
+                        _unitName)
 
-                missionCommands.addCommandForGroup(_groupId, "Request Signal Flare", _rootPath, csar.signalFlare,_unitName)
+                    missionCommands.addCommandForGroup(_groupId, "Check Onboard", _rootPath, csar.checkOnboard,_unitName)
+
+                    missionCommands.addCommandForGroup(_groupId, "Request Signal Flare", _rootPath, csar.signalFlare,_unitName)
+                end
             end
         else
             -- env.info(string.format("unit nil %s",_unitName))
@@ -1278,6 +1297,16 @@ function csar.getClockDirection(_heli, _crate)
     end
 
     return _angle
+end
+
+function csar.getGroupId(_unit)
+
+    local _unitDB =  mist.DBs.unitsById[tonumber(_unit:getID())]
+    if _unitDB ~= nil and _unitDB.groupId then
+        return _unitDB.groupId
+    end
+
+    return nil
 end
 
 csar.generateVHFrequencies()

@@ -1,6 +1,6 @@
 -- CSAR Script for DCS Ciribob  2015
--- Version 1.5 - 03/10/2015
--- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
+-- Version 1.6 - 09/10/2015
+-- DCS 1.6 Compatible - Needs Mist 4.0.55 or higher!
 
 csar = {}
 
@@ -214,12 +214,9 @@ function csar.eventHandler:onEvent(_event)
                     timer.scheduleFunction(csar.checkDisabledAircraftStatus, _unit:getName(), timer.getTime() + 1)
                 end
             end
-
-            --fix for :getGroup not working in 1.5
-            local _originalGroupName = mist.DBs.unitsById[tonumber(_unit:getID())].groupName
-
+            
             --store the old group under the new group name
-            csar.woundedGroups[_spawnedGroup:getName()] = { originalGroup = _originalGroupName, side = _spawnedGroup:getCoalition(), originalUnit = _unit:getName(), frequency= _freq, desc = _text }
+            csar.woundedGroups[_spawnedGroup:getName()] = {  side = _spawnedGroup:getCoalition(), originalUnit = _unit:getName(), frequency= _freq, desc = _text }
 
             csar.initSARForPilot(_spawnedGroup,_freq)
 
@@ -558,7 +555,7 @@ function csar.pickupUnit(_heliUnit,_pilotName,_woundedGroup,_woundedGroupName)
 
     csar.inTransitGroups[_heliName][_woundedGroupName] =
     {
-        originalGroup = csar.woundedGroups[_woundedGroupName].originalGroup,
+        
         originalUnit = csar.woundedGroups[_woundedGroupName].originalUnit,
         woundedGroup = _woundedGroupName,
         side = _heliUnit:getCoalition(),

@@ -1,6 +1,6 @@
--- CSAR Script for DCS Ciribob  2015
--- Version 1.6 - 09/10/2015
--- DCS 1.6 Compatible - Needs Mist 4.0.55 or higher!
+-- CSAR Script for DCS Ciribob - 2015
+-- Version 1.7 - 09/10/2015
+-- DCS 1.7 Compatible - Needs Mist 4.0.55 or higher!
 
 csar = {}
 
@@ -13,9 +13,9 @@ csar.redmash = { "RedMASH #1", "RedMASH #2" } -- The unit that serves as MASH fo
 csar.disableAircraft = true -- DISABLE player aircraft until the pilot is rescued?
 
 csar.disableIfNoEjection = false -- if true disables aircraft even if the pilot doesnt eject
+
 -- - I recommend you leave the option on below otherwise the
 -- aircraft will be disabled for the duration of the mission
-
 csar.disableAircraftTimeout = true -- Allow aircraft to be used after 20 minutes if the pilot isnt rescued
 csar.disableTimeoutTime = 20 -- Time in minutes for TIMEOUT
 
@@ -25,7 +25,6 @@ csar.enableForAI = false -- set to false to disable AI units from being rescued.
 
 csar.bluesmokecolor = 4 -- Color of smokemarker for blue side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
 csar.redsmokecolor = 1 -- Color of smokemarker for red side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
-
 
 csar.requestdelay = 2 -- Time in seconds before the survivors will request Medevac
 
@@ -38,8 +37,7 @@ csar.invisiblecrew = true -- Set to true to make wounded crew insvisible
 
 csar.messageTime = 30 -- Time to show the intial wounded message for in seconds
 
--- If you set it less than 25 the troops might not move close enough
-csar.loadDistance = 50 -- configure distance for troops to get in helicopter in meters.
+csar.loadDistance = 60 -- configure distance for pilot to get in helicopter in meters.
 
 csar.radioSound = "beacon.ogg" -- the name of the sound file to use for the Pilot radio beacons. If this isnt added to the mission BEACONS WONT WORK!
 
@@ -102,7 +100,7 @@ function csar.eventHandler:onEvent(_event)
         if _event == nil or _event.initiator == nil then
             return false
 
-        elseif _event.id == 15 then
+        elseif _event.id == 15 then --player entered unit
 
             -- if its a sar heli, re-add check status script
             for _, _heliName in pairs(csar.csarUnits) do
@@ -120,6 +118,12 @@ function csar.eventHandler:onEvent(_event)
                         end
                     end
                 end
+            end
+
+            if  _event.initiator:getName() then
+
+                env.info("Checking Unit - ".._event.initiator:getName())
+                csar.checkDisabledAircraftStatus( _event.initiator:getName())
             end
 
             return true
@@ -150,7 +154,6 @@ function csar.eventHandler:onEvent(_event)
                 end
 
                 csar.currentlyDisabled[_unit:getName()] = {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc="",noPilot = true}
-                timer.scheduleFunction(csar.checkDisabledAircraftStatus, _unit:getName(), timer.getTime() + 1)
             end
 
             return
@@ -169,13 +172,10 @@ function csar.eventHandler:onEvent(_event)
                 return --already ejected once!
             end
 
-
             if csar.enableForAI == false and _unit:getPlayerName() == nil then
 
                 return
             end
-
-
 
             local _spawnedGroup = csar.spawnGroup(_unit)
             csar.addSpecialParametersToGroup(_spawnedGroup)
@@ -211,17 +211,14 @@ function csar.eventHandler:onEvent(_event)
 
                 if _disable then
                     csar.currentlyDisabled[_unit:getName()] = {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc=_text, noPilot = false}
-                    timer.scheduleFunction(csar.checkDisabledAircraftStatus, _unit:getName(), timer.getTime() + 1)
+                 --   timer.scheduleFunction(csar.checkDisabledAircraftStatus, _unit:getName(), timer.getTime() + 1)
                 end
             end
-            
-            --store the old group under the new group name
+
             csar.woundedGroups[_spawnedGroup:getName()] = {  side = _spawnedGroup:getCoalition(), originalUnit = _unit:getName(), frequency= _freq, desc = _text }
 
             csar.initSARForPilot(_spawnedGroup,_freq)
 
-            --dont add until we're done processing...
-            --table.insert(medevac.deadUnits, _event.initiator)
         end
     end, _event)
     if (not status) then
@@ -270,26 +267,19 @@ function csar.checkDisabledAircraftStatus(_name)
                 end
             end
 
-            --destroy in 20 seconds
-            timer.scheduleFunction(csar.destroyUnit, _name, timer.getTime() + 20)
-
-            --queue up in 25 seconds
-
-            timer.scheduleFunction(csar.checkDisabledAircraftStatus, _name, timer.getTime() + 25)
-            return
+            --destroy in 10 seconds
+            timer.scheduleFunction(csar.destroyUnit, {_name, _unit:getPlayerName()}, timer.getTime() + 10)
         end
-    else
-        return -- stop checking
     end
-
-    timer.scheduleFunction(csar.checkDisabledAircraftStatus, _name, timer.getTime() + 1)
 
 end
 
-function csar.destroyUnit(_unitName)
-    local _unit = Unit.getByName(_unitName)
+function csar.destroyUnit(_args)
+    local _unit = Unit.getByName(_args[1])
 
-    if _unit ~= nil then
+    --destroy if the SAME player is still in the aircraft
+    -- if a new player got in it'll be destroyed in a bit anyways
+    if _unit ~= nil and _unit:getPlayerName() == _args[2] then
         _unit:destroy()
     end
 end
@@ -555,7 +545,7 @@ function csar.pickupUnit(_heliUnit,_pilotName,_woundedGroup,_woundedGroupName)
 
     csar.inTransitGroups[_heliName][_woundedGroupName] =
     {
-        
+
         originalUnit = csar.woundedGroups[_woundedGroupName].originalUnit,
         woundedGroup = _woundedGroupName,
         side = _heliUnit:getCoalition(),
@@ -716,6 +706,7 @@ function csar.scheduledSARFlight(_args)
 
         if (_heliUnit == nil) then
 
+            --helicopter crashed?
             -- Put intransit pilots back
             --TODO possibly respawn the guys
             local _rescuedGroups = csar.inTransitGroups[_args.heliName]

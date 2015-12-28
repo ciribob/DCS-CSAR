@@ -1,14 +1,128 @@
 -- CSAR Script for DCS Ciribob - 2015
--- Version 1.8 - 21/10/2015
+-- Version 1.8.1 - 28/12/2015
 -- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 
 csar = {}
 
 -- SETTINGS FOR MISSION DESIGNER vvvvvvvvvvvvvvvvvv
-csar.csarUnits = { "MEDEVAC #1", "MEDEVAC #2", "MEDEVAC #3", "MEDEVAC #4", "MEDEVAC #5", "MEDEVAC RED #1", "MEDEVAC BLUE #1" } -- List of all the MEDEVAC _UNIT NAMES_ (the line where it says "Pilot" in the ME)!
+csar.csarUnits = { 
+    "helicargo1",
+    "helicargo2",
+    "helicargo3",
+    "helicargo4",
+    "helicargo5",
+    "helicargo6",
+    "helicargo7",
+    "helicargo8",
+    "helicargo9",
+    "helicargo10",
 
-csar.bluemash = { "BlueMASH #1", "BlueMASH #2" } -- The unit that serves as MASH for the blue side
-csar.redmash = { "RedMASH #1", "RedMASH #2" } -- The unit that serves as MASH for the red side
+    "helicargo11",
+    "helicargo12",
+    "helicargo13",
+    "helicargo14",
+    "helicargo15",
+    "helicargo16",
+    "helicargo17",
+    "helicargo18",
+    "helicargo19",
+    "helicargo20",
+
+    "helicargo21",
+    "helicargo22",
+    "helicargo23",
+    "helicargo24",
+    "helicargo25",
+
+    "MEDEVAC #1",
+    "MEDEVAC #2",
+    "MEDEVAC #3",
+    "MEDEVAC #4",
+    "MEDEVAC #5",
+    "MEDEVAC #6",
+    "MEDEVAC #7",
+    "MEDEVAC #8",
+    "MEDEVAC #9",
+    "MEDEVAC #10",
+    "MEDEVAC #11",
+    "MEDEVAC #12",
+    "MEDEVAC #13",
+    "MEDEVAC #14",
+    "MEDEVAC #15",
+    "MEDEVAC #16",
+
+    "MEDEVAC RED #1",
+    "MEDEVAC RED #2",
+    "MEDEVAC RED #3",
+    "MEDEVAC RED #4",
+    "MEDEVAC RED #5",
+    "MEDEVAC RED #6",
+    "MEDEVAC RED #7",
+    "MEDEVAC RED #8",
+    "MEDEVAC RED #9",
+    "MEDEVAC RED #10",
+    "MEDEVAC RED #11",
+    "MEDEVAC RED #12",
+    "MEDEVAC RED #13",
+    "MEDEVAC RED #14",
+    "MEDEVAC RED #15",
+    "MEDEVAC RED #16",
+    "MEDEVAC RED #17",
+    "MEDEVAC RED #18",
+    "MEDEVAC RED #19",
+    "MEDEVAC RED #20",
+    "MEDEVAC RED #21",
+
+    "MEDEVAC BLUE #1",
+    "MEDEVAC BLUE #2",
+    "MEDEVAC BLUE #3",
+    "MEDEVAC BLUE #4",
+    "MEDEVAC BLUE #5",
+    "MEDEVAC BLUE #6",
+    "MEDEVAC BLUE #7",
+    "MEDEVAC BLUE #8",
+    "MEDEVAC BLUE #9",
+    "MEDEVAC BLUE #10",
+    "MEDEVAC BLUE #11",
+    "MEDEVAC BLUE #12",
+    "MEDEVAC BLUE #13",
+    "MEDEVAC BLUE #14",
+    "MEDEVAC BLUE #15",
+    "MEDEVAC BLUE #16",
+    "MEDEVAC BLUE #17",
+    "MEDEVAC BLUE #18",
+    "MEDEVAC BLUE #19",
+    "MEDEVAC BLUE #20",
+    "MEDEVAC BLUE #21",
+
+
+} -- List of all the MEDEVAC _UNIT NAMES_ (the line where it says "Pilot" in the ME)!
+
+csar.bluemash = { 
+"BlueMASH #1", 
+"BlueMASH #2", 
+"BlueMASH #3", 
+"BlueMASH #4", 
+"BlueMASH #5", 
+"BlueMASH #6", 
+"BlueMASH #7", 
+"BlueMASH #8", 
+"BlueMASH #9", 
+"BlueMASH #10"
+ } -- The unit that serves as MASH for the blue side
+
+csar.redmash = { 
+"RedMASH #1", 
+"RedMASH #2", 
+"RedMASH #3", 
+"RedMASH #4", 
+"RedMASH #5", 
+"RedMASH #6", 
+"RedMASH #7", 
+"RedMASH #8", 
+"RedMASH #9", 
+"RedMASH #10"
+} -- The unit that serves as MASH for the red side
 
 csar.disableAircraft = true -- DISABLE player aircraft until the pilot is rescued?
 

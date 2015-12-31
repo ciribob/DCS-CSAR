@@ -904,11 +904,11 @@ function csar.scheduledSARFlight(_args)
         local _dist = csar.getClosetMASH(_heliUnit)
 
         if _dist == -1 then
-
+        	-- Can now rescue to FARP
             -- Mash Dead
-            csar.inTransitGroups[_heliUnit:getName()][_woundedGroupName] = nil
+          --  csar.inTransitGroups[_heliUnit:getName()][_woundedGroupName] = nil
 
-            csar.displayMessageToSAR(_heliUnit, string.format("%s: NO MASH! The pilot died of despair!", _heliUnit:getName()), 10)
+          --  csar.displayMessageToSAR(_heliUnit, string.format("%s: NO MASH! The pilot died of despair!", _heliUnit:getName()), 10)
 
             return
         end

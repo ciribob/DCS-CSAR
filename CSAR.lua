@@ -1,5 +1,5 @@
 -- CSAR Script for DCS Ciribob - 2015
--- Version 1.8.1 - 28/12/2015
+-- Version 1.8.2 - 31/12/2015
 -- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 
 csar = {}
@@ -156,6 +156,8 @@ csar.messageTime = 30 -- Time to show the intial wounded message for in seconds
 csar.loadDistance = 60 -- configure distance for pilot to get in helicopter in meters.
 
 csar.radioSound = "beacon.ogg" -- the name of the sound file to use for the Pilot radio beacons. If this isnt added to the mission BEACONS WONT WORK!
+
+csar.allowFARPRescue = true --allows pilot to be rescued by landing at a FARP or Airbase
 
 -- SETTINGS FOR MISSION DESIGNER ^^^^^^^^^^^^^^^^^^^*
 
@@ -338,6 +340,32 @@ function csar.eventHandler:onEvent(_event)
             csar.woundedGroups[_spawnedGroup:getName()] = {  side = _spawnedGroup:getCoalition(), originalUnit = _unit:getName(), frequency= _freq, desc = _text }
 
             csar.initSARForPilot(_spawnedGroup,_freq)
+
+            return true
+
+        elseif world.event.S_EVENT_LAND == _event.id then
+
+            if csar.allowFARPRescue then
+
+                local _unit = _event.initiator
+
+                if _unit == nil then
+                    return -- error!
+                end
+
+                local _place = _event.place
+
+                if _place == nil then
+                    return -- error!
+                end
+
+                if _place:getCoalition() == _unit:getCoalition() or _place:getCoalition() == 0 then
+                    csar.rescuePilots(_unit)
+                    --env.info("Rescued")
+                end
+            end
+
+            return true
 
         end
     end, _event)
@@ -887,18 +915,7 @@ function csar.scheduledSARFlight(_args)
 
         if _dist < 200 and _heliUnit:inAir() == false then
 
-            local _rescuedGroups = csar.inTransitGroups[_heliUnit:getName()]
-
-            csar.inTransitGroups[_heliUnit:getName()] = nil
-
-            local _txt = string.format("%s: The pilots have been taken to the\nmedical clinic. Good job!", _heliUnit:getName())
-
-            -- enable pilots again
-            for _, _rescueGroup in pairs(_rescuedGroups) do
-                csar.currentlyDisabled[_rescueGroup.originalUnit] = nil
-            end
-
-            csar.displayMessageToSAR(_heliUnit, _txt, 10)
+            csar.rescuePilots(_heliUnit)
 
             return
         end
@@ -915,6 +932,28 @@ function csar.scheduledSARFlight(_args)
     if (not _status) then
         env.error(string.format("Error in scheduledSARFlight\n\n%s", _err))
     end
+end
+
+function csar.rescuePilots(_heliUnit)
+    local _rescuedGroups = csar.inTransitGroups[_heliUnit:getName()]
+
+    if _rescuedGroups == nil  then
+        -- Groups already rescued
+        return
+    end
+
+    csar.inTransitGroups[_heliUnit:getName()] = nil
+
+    local _txt = string.format("%s: The pilots have been taken to the\nmedical clinic. Good job!", _heliUnit:getName())
+
+    -- enable pilots again
+    for _, _rescueGroup in pairs(_rescuedGroups) do
+        csar.currentlyDisabled[_rescueGroup.originalUnit] = nil
+    end
+
+    csar.displayMessageToSAR(_heliUnit, _txt, 10)
+
+    env.info("Rescued")
 end
 
 
@@ -1190,7 +1229,7 @@ function csar.checkOnboard(_unitName)
         csar.displayMessageToSAR(_unit, "No Rescued Pilots onboard", 30)
     else
 
-        local _text = "Onboard: "
+        local _text = "Onboard - RTB to FARP/Airfield or MASH: "
 
         for _,_onboard  in pairs(csar.inTransitGroups[_unitName]) do
             _text = _text .."\n".._onboard.desc

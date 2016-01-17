@@ -1,11 +1,11 @@
 -- CSAR Script for DCS Ciribob - 2015
--- Version 1.8.2 - 31/12/2015
+-- Version 1.8.3 - 17/01/2016
 -- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 
 csar = {}
 
 -- SETTINGS FOR MISSION DESIGNER vvvvvvvvvvvvvvvvvv
-csar.csarUnits = { 
+csar.csarUnits = {
     "helicargo1",
     "helicargo2",
     "helicargo3",
@@ -98,30 +98,30 @@ csar.csarUnits = {
 
 } -- List of all the MEDEVAC _UNIT NAMES_ (the line where it says "Pilot" in the ME)!
 
-csar.bluemash = { 
-"BlueMASH #1", 
-"BlueMASH #2", 
-"BlueMASH #3", 
-"BlueMASH #4", 
-"BlueMASH #5", 
-"BlueMASH #6", 
-"BlueMASH #7", 
-"BlueMASH #8", 
-"BlueMASH #9", 
-"BlueMASH #10"
- } -- The unit that serves as MASH for the blue side
+csar.bluemash = {
+    "BlueMASH #1",
+    "BlueMASH #2",
+    "BlueMASH #3",
+    "BlueMASH #4",
+    "BlueMASH #5",
+    "BlueMASH #6",
+    "BlueMASH #7",
+    "BlueMASH #8",
+    "BlueMASH #9",
+    "BlueMASH #10"
+} -- The unit that serves as MASH for the blue side
 
-csar.redmash = { 
-"RedMASH #1", 
-"RedMASH #2", 
-"RedMASH #3", 
-"RedMASH #4", 
-"RedMASH #5", 
-"RedMASH #6", 
-"RedMASH #7", 
-"RedMASH #8", 
-"RedMASH #9", 
-"RedMASH #10"
+csar.redmash = {
+    "RedMASH #1",
+    "RedMASH #2",
+    "RedMASH #3",
+    "RedMASH #4",
+    "RedMASH #5",
+    "RedMASH #6",
+    "RedMASH #7",
+    "RedMASH #8",
+    "RedMASH #9",
+    "RedMASH #10"
 } -- The unit that serves as MASH for the red side
 
 csar.disableAircraft = true -- DISABLE player aircraft until the pilot is rescued?
@@ -138,6 +138,11 @@ csar.destructionHeight = 150 -- height in meters an aircraft will be destroyed a
 csar.disableCSARAircraft = false -- if set to TRUE then if a CSAR heli crashes or is shot down, it'll have to be rescued by another CSAR Heli!
 
 csar.enableForAI = false -- set to false to disable AI units from being rescued.
+
+csar.enableSlotBlocking = false -- if set to true, you need to put the csarSlotBlockGameGUI.lua
+                                -- in C:/Users/<YOUR USERNAME>/DCS/Scripts for 1.5 or C:/Users/<YOUR USERNAME>/DCS.openalpha/Scripts for 2.0
+                                -- For missions using FLAGS and this script, make sure that all mission value numbers are higher than 1000 to ensure
+                                -- the scripts dont conflict
 
 csar.bluesmokecolor = 4 -- Color of smokemarker for blue side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
 csar.redsmokecolor = 1 -- Color of smokemarker for red side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
@@ -162,7 +167,7 @@ csar.allowFARPRescue = true --allows pilot to be rescued by landing at a FARP or
 -- SETTINGS FOR MISSION DESIGNER ^^^^^^^^^^^^^^^^^^^*
 
 -- Sanity checks of mission designer
-assert(mist ~= nil, "\n\n** HEY MISSION-DESIGNER! **\n\nMiST has not been loaded!\n\nMake sure MiST 3.7 or higher is running\n*before* running this script!\n")
+assert(mist ~= nil, "\n\n** HEY MISSION-DESIGNER! **\n\nMiST has not been loaded!\n\nMake sure MiST 4.0.57 or higher is running\n*before* running this script!\n")
 
 csar.addedTo = {}
 
@@ -182,11 +187,13 @@ csar.heliCloseMessage = {} -- tracks heli close message  ie heli < 500m distance
 
 csar.radioBeacons = {} -- all current beacons
 
-csar.max_units = 5 --number of pilots that can be carried
+csar.max_units = 6 --number of pilots that can be carried
 
 csar.currentlyDisabled = {} --stored disabled aircraft
 
 csar.hoverStatus = {} -- tracks status of a helis hover above a downed pilot
+
+
 
 function csar.tableLength(T)
 
@@ -220,31 +227,31 @@ function csar.eventHandler:onEvent(_event)
 
         elseif _event.id == 15 then --player entered unit
 
-        -- if its a sar heli, re-add check status script
-        for _, _heliName in pairs(csar.csarUnits) do
+            -- if its a sar heli, re-add check status script
+            for _, _heliName in pairs(csar.csarUnits) do
 
-            if _heliName == _event.initiator:getName() then
-                -- add back the status script
-                for _woundedName, _groupInfo in pairs(csar.woundedGroups) do
+                if _heliName == _event.initiator:getName() then
+                    -- add back the status script
+                    for _woundedName, _groupInfo in pairs(csar.woundedGroups) do
 
-                    if _groupInfo.side == _event.initiator:getCoalition() then
+                        if _groupInfo.side == _event.initiator:getCoalition() then
 
-                        --env.info(string.format("Schedule Respawn %s %s",_heliName,_woundedName))
-                        -- queue up script
-                        -- Schedule timer to check when to pop smoke
-                        timer.scheduleFunction(csar.checkWoundedGroupStatus, { _heliName, _woundedName }, timer.getTime() + 5)
+                            --env.info(string.format("Schedule Respawn %s %s",_heliName,_woundedName))
+                            -- queue up script
+                            -- Schedule timer to check when to pop smoke
+                            timer.scheduleFunction(csar.checkWoundedGroupStatus, { _heliName, _woundedName }, timer.getTime() + 5)
+                        end
                     end
                 end
             end
-        end
 
-        if  _event.initiator:getName() then
+            if  _event.initiator:getName() then
 
-            env.info("Checking Unit - ".._event.initiator:getName())
-            csar.checkDisabledAircraftStatus( _event.initiator:getName())
-        end
+                env.info("Checking Unit - ".._event.initiator:getName())
+                csar.checkDisabledAircraftStatus( _event.initiator:getName())
+            end
 
-        return true
+            return true
         elseif (_event.id == 9) then
             -- Pilot dead
 
@@ -275,7 +282,15 @@ function csar.eventHandler:onEvent(_event)
                     end
                 end
 
-                csar.currentlyDisabled[_unit:getName()] = {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc="",noPilot = true}
+                csar.currentlyDisabled[_unit:getName()] = {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc="",noPilot = true,unitId=_unit:getID() }
+
+                -- disable aircraft
+                if csar.enableSlotBlocking then
+
+                    trigger.action.setUserFlag(_unit:getID(),100)
+
+                    env.info("Unit Disabled: ".._unit:getName().." ID:".._unit:getID())
+                end
             end
 
             return
@@ -332,8 +347,15 @@ function csar.eventHandler:onEvent(_event)
                 end
 
                 if _disable then
-                    csar.currentlyDisabled[_unit:getName()] = {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc=_text, noPilot = false}
+                    csar.currentlyDisabled[_unit:getName()] = {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc=_text, noPilot = false,unitId=_unit:getID()}
                     --   timer.scheduleFunction(csar.checkDisabledAircraftStatus, _unit:getName(), timer.getTime() + 1)
+                    -- disable aircraft
+                    if csar.enableSlotBlocking then
+
+                        trigger.action.setUserFlag(_unit:getID(),100)
+
+                        env.info("Unit Disabled: ".._unit:getName().." ID:".._unit:getID())
+                    end
                 end
             end
 
@@ -347,21 +369,31 @@ function csar.eventHandler:onEvent(_event)
 
             if csar.allowFARPRescue then
 
+              --  env.info("Landing")
+
                 local _unit = _event.initiator
 
                 if _unit == nil then
+                    --    env.info("Unit Nil on Landing")
                     return -- error!
                 end
 
                 local _place = _event.place
 
                 if _place == nil then
+                   --  env.info("Landing Place Nil")
                     return -- error!
                 end
-
-                if _place:getCoalition() == _unit:getCoalition() or _place:getCoalition() == 0 then
+                    -- Coalition == 3 seems to be a bug... unless it means contested?!
+                if _place:getCoalition() == _unit:getCoalition() or _place:getCoalition() == 0 or _place:getCoalition() == 3 then
                     csar.rescuePilots(_unit)
                     --env.info("Rescued")
+                 --   env.info("Rescued by Landing")
+
+                else
+                 --   env.info("Cant Rescue ")
+
+                  --  env.info(string.format("airfield %d, unit %d",_place:getCoalition(),_unit:getCoalition()))
                 end
             end
 
@@ -374,6 +406,18 @@ function csar.eventHandler:onEvent(_event)
     end
 end
 
+function csar.enableAircraft(_name)
+    --remove from disabled
+    local _disabledAircraft = csar.currentlyDisabled[_name]
+
+    if _disabledAircraft ~= nil and csar.enableSlotBlocking then
+        trigger.action.setUserFlag(_disabledAircraft.unitId,0)
+        env.info("Unit Enable: ".._name.." ID:".._disabledAircraft.unitId)
+    end
+
+    csar.currentlyDisabled[_name] = nil
+end
+
 function csar.checkDisabledAircraftStatus(_name)
 
     local _details = csar.currentlyDisabled[_name]
@@ -382,8 +426,7 @@ function csar.checkDisabledAircraftStatus(_name)
 
         if csar.disableAircraftTimeout and timer.getTime() >= _details.timeout then
 
-            --remove from disabled
-            csar.currentlyDisabled[_name] = nil
+            csar.enableAircraft(_name)
 
             return
         end
@@ -433,14 +476,14 @@ function csar.destroyUnit(_unit)
     -- if a new player got in it'll be destroyed in a bit anyways
     if _unit ~= nil and _unit:getPlayerName() ~= nil then
 
-       if csar.heightDiff(_unit) > csar.destructionHeight then
+        if csar.heightDiff(_unit) > csar.destructionHeight then
 
-           csar.displayMessageToSAR(_unit, "Aircraft Destroyed as the pilot needs to be rescued!", 10,true)
-           --if we're off the ground then explode
-           trigger.action.explosion(_unit:getPoint(),100);
+            csar.displayMessageToSAR(_unit, "Aircraft Destroyed as the pilot needs to be rescued!", 10,true)
+            --if we're off the ground then explode
+            trigger.action.explosion(_unit:getPoint(),100);
 
-           return true
-       end
+            return true
+        end
         --_unit:destroy() destroy doesnt work for playes who arent the host in multiplayer
     end
 
@@ -885,7 +928,8 @@ function csar.scheduledSARFlight(_args)
 
                 -- enable pilots again
                 for _, _rescueGroup in pairs(_rescuedGroups) do
-                    csar.currentlyDisabled[_rescueGroup.originalUnit] = nil
+
+                    csar.enableAircraft(_rescueGroup.originalUnit)
                 end
 
             end
@@ -904,11 +948,11 @@ function csar.scheduledSARFlight(_args)
         local _dist = csar.getClosetMASH(_heliUnit)
 
         if _dist == -1 then
-        	-- Can now rescue to FARP
+            -- Can now rescue to FARP
             -- Mash Dead
-          --  csar.inTransitGroups[_heliUnit:getName()][_woundedGroupName] = nil
+            --  csar.inTransitGroups[_heliUnit:getName()][_woundedGroupName] = nil
 
-          --  csar.displayMessageToSAR(_heliUnit, string.format("%s: NO MASH! The pilot died of despair!", _heliUnit:getName()), 10)
+            --  csar.displayMessageToSAR(_heliUnit, string.format("%s: NO MASH! The pilot died of despair!", _heliUnit:getName()), 10)
 
             return
         end
@@ -948,12 +992,13 @@ function csar.rescuePilots(_heliUnit)
 
     -- enable pilots again
     for _, _rescueGroup in pairs(_rescuedGroups) do
-        csar.currentlyDisabled[_rescueGroup.originalUnit] = nil
+
+        csar.enableAircraft(_rescueGroup.originalUnit)
     end
 
     csar.displayMessageToSAR(_heliUnit, _txt, 10)
 
-    env.info("Rescued")
+   -- env.info("Rescued")
 end
 
 

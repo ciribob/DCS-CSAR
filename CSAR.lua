@@ -1135,6 +1135,8 @@ function csar.displayActiveSAR(_unitName)
 
     local _heliSide = _heli:getCoalition()
 
+    local _csarList = {}
+
     for _groupName, _value in pairs(csar.woundedGroups) do
 
         local _woundedGroup = csar.getWoundedGroup(_groupName)
@@ -1145,8 +1147,17 @@ function csar.displayActiveSAR(_unitName)
 
             local _distance = csar.getDistance(_heli:getPoint(), _woundedGroup[1]:getPoint())
 
-            _msg = string.format("%s\n%s at %s - %.2f KHz ADF - %.3fKM ", _msg, _value.desc, _coordinatesText, _value.frequency/1000,_distance/1000.0)
+            table.insert(_csarList, {dist = _distance,msg = string.format("%s at %s - %.2f KHz ADF - %.3fKM ",  _value.desc, _coordinatesText, _value.frequency/1000,_distance/1000.0)})
         end
+    end
+
+    local function sortDistance(a,b)
+        return a.dist < b.dist
+    end
+    table.sort(_csarList, sortDistance)
+
+    for _,_line in pairs(_csarList) do
+        _msg = _msg .."\n".._line.msg
     end
 
     csar.displayMessageToSAR(_heli, _msg, 20)
@@ -1195,7 +1206,7 @@ function csar.signalFlare(_unitName)
 
     local _closet =  csar.getClosetDownedPilot(_heli)
 
-    if _closet ~= nil and _closet.pilot ~= nil and _closet.distance < 1000.0 then
+    if _closet ~= nil and _closet.pilot ~= nil and _closet.distance < 3000.0 then
 
         local _clockDir = csar.getClockDirection(_heli,_closet.pilot)
 
@@ -1204,7 +1215,7 @@ function csar.signalFlare(_unitName)
 
         trigger.action.signalFlare(_closet.pilot:getPoint(),1, 0 )
     else
-        csar.displayMessageToSAR(_heli, "No Pilots within 1KM", 20)
+        csar.displayMessageToSAR(_heli, "No Pilots within 3KM", 20)
     end
 
 end

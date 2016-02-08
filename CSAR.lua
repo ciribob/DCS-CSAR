@@ -607,6 +607,9 @@ function csar.spawnGroup(_deadUnit)
 
     local _spawnedGroup = Group.getByName(mist.dynAdd(_group).name)
 
+      -- Turn off AI
+    trigger.action.setGroupAIOff(_spawnedGroup)
+
     return _spawnedGroup
 end
 

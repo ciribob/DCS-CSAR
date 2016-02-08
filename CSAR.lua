@@ -1,5 +1,5 @@
 -- CSAR Script for DCS Ciribob - 2015
--- Version 1.8.3 - 17/01/2016
+-- Version 1.8.4 - 08/02/2016
 -- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 
 csar = {}
@@ -139,10 +139,13 @@ csar.disableCSARAircraft = false -- if set to TRUE then if a CSAR heli crashes o
 
 csar.enableForAI = false -- set to false to disable AI units from being rescued.
 
+csar.enableForRED = true -- enable for red side
+
+csar.enableForBLUE = true  -- enable for blue side
+
 csar.enableSlotBlocking = false -- if set to true, you need to put the csarSlotBlockGameGUI.lua
                                 -- in C:/Users/<YOUR USERNAME>/DCS/Scripts for 1.5 or C:/Users/<YOUR USERNAME>/DCS.openalpha/Scripts for 2.0
-                                -- For missions using FLAGS and this script, make sure that all mission value numbers are higher than 1000 to ensure
-                                -- the scripts dont conflict
+                                -- For missions using FLAGS and this script, the CSAR flags will NOT interfere with your mission :)
 
 csar.bluesmokecolor = 4 -- Color of smokemarker for blue side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
 csar.redsmokecolor = 1 -- Color of smokemarker for red side, 0 is green, 1 is red, 2 is white, 3 is orange and 4 is blue
@@ -263,6 +266,16 @@ function csar.eventHandler:onEvent(_event)
                 return -- error!
             end
 
+            local _coalition = _unit:getCoalition()
+
+            if _coalition == 1 and not csar.enableForRED then
+                return  --ignore!
+            end
+
+            if _coalition == 2 and not csar.enableForBLUE then
+                return  --ignore!
+            end
+
             if csar.currentlyDisabled[_unit:getName()] ~= nil then
                 return --already ejected once!
             end
@@ -287,7 +300,7 @@ function csar.eventHandler:onEvent(_event)
                 -- disable aircraft
                 if csar.enableSlotBlocking then
 
-                    trigger.action.setUserFlag(_unit:getID(),100)
+                    trigger.action.setUserFlag("CSAR_".._unit:getID(),100)
 
                     env.info("Unit Disabled: ".._unit:getName().." ID:".._unit:getID())
                 end
@@ -303,6 +316,16 @@ function csar.eventHandler:onEvent(_event)
 
             if _unit == nil then
                 return -- error!
+            end
+
+            local _coalition = _unit:getCoalition()
+
+            if _coalition == 1 and not csar.enableForRED then
+                return  --ignore!
+            end
+
+            if _coalition == 2 and not csar.enableForBLUE then
+                return  --ignore!
             end
 
             if csar.currentlyDisabled[_unit:getName()] ~= nil then
@@ -352,7 +375,7 @@ function csar.eventHandler:onEvent(_event)
                     -- disable aircraft
                     if csar.enableSlotBlocking then
 
-                        trigger.action.setUserFlag(_unit:getID(),100)
+                        trigger.action.setUserFlag("CSAR_".._unit:getID(),100)
 
                         env.info("Unit Disabled: ".._unit:getName().." ID:".._unit:getID())
                     end
@@ -411,7 +434,7 @@ function csar.enableAircraft(_name)
     local _disabledAircraft = csar.currentlyDisabled[_name]
 
     if _disabledAircraft ~= nil and csar.enableSlotBlocking then
-        trigger.action.setUserFlag(_disabledAircraft.unitId,0)
+        trigger.action.setUserFlag("CSAR_".._disabledAircraft.unitId,0)
         env.info("Unit Enable: ".._name.." ID:".._disabledAircraft.unitId)
     end
 
@@ -1206,7 +1229,7 @@ function csar.signalFlare(_unitName)
 
     local _closet =  csar.getClosetDownedPilot(_heli)
 
-    if _closet ~= nil and _closet.pilot ~= nil and _closet.distance < 3000.0 then
+    if _closet ~= nil and _closet.pilot ~= nil and _closet.distance < 8000.0 then
 
         local _clockDir = csar.getClockDirection(_heli,_closet.pilot)
 
@@ -1215,7 +1238,7 @@ function csar.signalFlare(_unitName)
 
         trigger.action.signalFlare(_closet.pilot:getPoint(),1, 0 )
     else
-        csar.displayMessageToSAR(_heli, "No Pilots within 3KM", 20)
+        csar.displayMessageToSAR(_heli, "No Pilots within 8KM", 20)
     end
 
 end
@@ -1542,3 +1565,12 @@ timer.scheduleFunction(csar.addMedevacMenuItem, nil, timer.getTime() + 5)
 world.addEventHandler(csar.eventHandler)
 
 env.info("CSAR event handler added")
+
+-- disable aircraft
+if csar.enableSlotBlocking then
+
+    trigger.action.setUserFlag("CSAR_SLOTBLOCK",100)
+
+    env.info("CSAR Slot block enabled")
+end
+

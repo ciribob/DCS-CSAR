@@ -1,19 +1,20 @@
 local csarSlotBlock = {} -- DONT REMOVE!!!
 --[[
 
-   CSAR Slot Blocking - V1.8.3
+   CSAR Slot Blocking - V1.8.4
    
    Put this file in C:/Users/<YOUR USERNAME>/DCS/Scripts for 1.5 or C:/Users/<YOUR USERNAME>/DCS.openalpha/Scripts for 2.0
    
    This script will use flags to disable and enable slots when a pilot is shot down and ejects.
 
-   *** NOTE: if you're using FLAGS in your mission, pick high values, above 1000 for flag numbers so this script doesn't interfere
-   with your mission flags ***
+   The flags will not interfere with mission flags
+
+
 
  ]]
 
 csarSlotBlock.showEnabledMessage = true -- if set to true, the player will be told that the slot is enabled when switching to it
-csarSlotBlock.version = "1.8.3"
+csarSlotBlock.version = "1.8.4"
 
 -- Logic for determining if player is allowed in a slot
 function csarSlotBlock.shouldAllowSlot(_playerID, _slotID) -- _slotID == Unit ID unless its multi aircraft in which case slotID is unitId_seatID
@@ -21,7 +22,7 @@ function csarSlotBlock.shouldAllowSlot(_playerID, _slotID) -- _slotID == Unit ID
 
     local _unitId = csarSlotBlock.getUnitId(_slotID);
 
-    local _status,_error  = net.dostring_in('server', " return trigger.misc.getUserFlag(".._unitId.."); ")
+    local _status,_error  = net.dostring_in('server', " return trigger.misc.getUserFlag(\"CSAR_".._unitId.."\"); ")
 
     if not _status and _error then
         net.log("error getting flag: ".._error)
@@ -110,7 +111,8 @@ csarSlotBlock.onPlayerTryChangeSlot = function(playerID, side, slotID)
 
             	local _playerName = net.get_player_info(playerID, 'name')
 
-	            if _playerName ~= nil and csarSlotBlock.showEnabledMessage then
+	            if _playerName ~= nil and csarSlotBlock.showEnabledMessage and
+                        csarSlotBlock.csarSlotBlockEnabled() then
 	                --Disable chat message to user
 	                local _chatMessage = string.format("*** %s - Aircraft Enabled! If you eject you will need to be rescued by CSAR. Protect the Helis! ***",_playerName)
 	                net.send_chat_to(_chatMessage, playerID)
@@ -124,6 +126,26 @@ csarSlotBlock.onPlayerTryChangeSlot = function(playerID, side, slotID)
 	end
 
     return true
+
+end
+
+csarSlotBlock.csarSlotBlockEnabled = function()
+
+    local _status,_error  = net.dostring_in('server', " return trigger.misc.getUserFlag(\"CSAR_SLOTBLOCK\"); ")
+
+    if not _status and _error then
+        net.log("error getting flag: ".._error)
+        return false
+    else
+        --  net.log("flag value ".._unitId.." value: ".._status)
+
+        --disabled
+        if tonumber(_status) == 100 then
+            return true
+        else
+            return false
+        end
+    end
 
 end
 

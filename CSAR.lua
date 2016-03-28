@@ -157,7 +157,7 @@ csar.enableForRED = true -- enable for red side
 
 csar.enableForBLUE = true  -- enable for blue side
 
-csar.enableSlotBlocking = false -- if set to true, you need to put the csarSlotBlockGameGUI.lua
+csar.enableSlotBlocking = true -- if set to true, you need to put the csarSlotBlockGameGUI.lua
 -- in C:/Users/<YOUR USERNAME>/DCS/Scripts for 1.5 or C:/Users/<YOUR USERNAME>/DCS.openalpha/Scripts for 2.0
 -- For missions using FLAGS and this script, the CSAR flags will NOT interfere with your mission :)
 
@@ -381,9 +381,9 @@ function csar.eventHandler:onEvent(_event)
                     --   env.info("Rescued by Landing")
 
                 else
-                    --   env.info("Cant Rescue ")
+                      env.info("Cant Rescue ")
 
-                    --  env.info(string.format("airfield %d, unit %d",_place:getCoalition(),_unit:getCoalition()))
+                      env.info(string.format("airfield %d, unit %d",_place:getCoalition(),_unit:getCoalition()))
                 end
             end
 
@@ -422,7 +422,7 @@ function csar.handleEjectOrCrash(_unit,_crashed)
 
             -- disable aircraft
 
-            trigger.action.setUserFlag("CSAR_AIRCRAFT..".._unit:getID(),100)
+            trigger.action.setUserFlag("CSAR_AIRCRAFT".._unit:getID(),100)
 
             env.info("Unit Disabled: ".._unit:getName().." ID:".._unit:getID())
 
@@ -500,7 +500,7 @@ function csar.enableAircraft(_name,_playerName)
             csar.currentlyDisabled[_name] = nil -- {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc="",noPilot = _crashed,unitId=_unit:getID() }
 
             --use flag to reenable
-            trigger.action.setUserFlag("CSAR_AIRCRAFT..".._details.unitId,0)
+            trigger.action.setUserFlag("CSAR_AIRCRAFT".._details.unitId,0)
         end
 
     elseif csar.csarMode == 2 and _playerName ~= nil then -- enable aircraft for pilot
@@ -513,7 +513,7 @@ function csar.enableAircraft(_name,_playerName)
             trigger.action.setUserFlag("CSAR_AIRCRAFT".._playerName:gsub('%W','').."_".._details.unitId,0)
         end
 
-    elseif csar.csarMode == 3 then -- No Disable - Just reduce player lives
+    elseif csar.csarMode == 3 and _playerName ~= nil then -- No Disable - Just reduce player lives
 
         -- give back life
 
@@ -527,7 +527,7 @@ function csar.enableAircraft(_name,_playerName)
 
         csar.pilotLives[_playerName] = _lives
 
-        trigger.action.setUserFlag("CSAR_PILOT".._unit:getPlayerName():gsub('%W',''),_lives)
+        trigger.action.setUserFlag("CSAR_PILOT".._playerName:gsub('%W',''),_lives)
 
     end
 end
@@ -616,8 +616,6 @@ function csar.checkDisabledAircraftStatus(_name)
         elseif csar.csarMode == 2 then -- disable aircraft for pilot
 
             local _details = csar.pilotDisabled[_unit:getPlayerName().."_".._unit:getName()]
-
-            local _details = csar.currentlyDisabled[_unit:getName()]
 
             if _details ~= nil then
 

@@ -9,8 +9,6 @@ local csarSlotBlock = {} -- DONT REMOVE!!!
 
    The flags will NOT interfere with mission flags
 
-
-
  ]]
 
 csarSlotBlock.showEnabledMessage = true -- if set to true, the player will be told that the slot is enabled when switching to it

@@ -6,7 +6,7 @@
 --      0 - No Limit - NO Aircraft disabling or pilot lives
 --      1 - Disable Aircraft when its down - Timeout to reenable aircraft
 --      2 - Disable Aircraft for Pilot when he's shot down -- timeout to reenable pilot for aircraft
---      3 - Pilot Life Limit - No Aircraft Disabling -- timeout to reset lives?
+--      3 - Pilot Life Limit - No Aircraft Disabling 
 
 csar = {}
 
@@ -215,6 +215,33 @@ csar.pilotDisabled = {} -- tracks what aircraft a pilot is disabled for
 csar.pilotLives = {} -- tracks how many lives a pilot has
 
 
+-- ***************************************************************
+-- **************** Mission Editor Functions *********************
+-- ***************************************************************
+
+-----------------------------------------------------------------
+-- Resets all life limits so everyone can spawn again. Usage:
+-- csar.resetAllPilotLives()
+--
+function csar.resetAllPilotLives()
+    csar.pilotLives = {}
+    env.info("Pilot Lives Reset!")
+end
+
+-----------------------------------------------------------------
+-- Resets all life limits so everyone can spawn again. Usage:
+-- csar.resetAllPilotLives()
+--
+function csar.resetPilotLife(_playerName)
+    csar.pilotLives[_playerName] = nil
+    env.info("Pilot life Reset!")
+end
+
+
+-- ***************************************************************
+-- **************** BE CAREFUL BELOW HERE ************************
+-- ***************************************************************
+
 function csar.tableLength(T)
 
     if T == nil then
@@ -265,10 +292,10 @@ function csar.eventHandler:onEvent(_event)
             end
         end
 
-        if  _event.initiator:getName() then
+        if  _event.initiator:getName() and  _event.initiator:getPlayerName() then
 
             env.info("Checking Unit - ".._event.initiator:getName())
-            csar.checkDisabledAircraftStatus( _event.initiator:getName())
+            csar.checkDisabledAircraftStatus({_event.initiator:getName(), _event.initiator:getPlayerName() })
         end
 
         return true
@@ -430,29 +457,29 @@ function csar.handleEjectOrCrash(_unit,_crashed)
 
     elseif csar.csarMode == 2 then -- disable aircraft for pilot
 
-    --csar.pilotDisabled
-    if  _unit:getPlayerName() ~= nil and  csar.pilotDisabled[_unit:getPlayerName().."_".._unit:getName()] == nil then
+        --csar.pilotDisabled
+        if  _unit:getPlayerName() ~= nil and  csar.pilotDisabled[_unit:getPlayerName().."_".._unit:getName()] == nil then
 
-        if csar.countCSARCrash == false then
-            for _, _heliName in pairs(csar.csarUnits) do
+            if csar.countCSARCrash == false then
+                for _, _heliName in pairs(csar.csarUnits) do
 
-                if _unit:getName() == _heliName then
-                    -- IGNORE Crashed CSAR
-                    return
+                    if _unit:getName() == _heliName then
+                        -- IGNORE Crashed CSAR
+                        return
+                    end
                 end
             end
+
+            csar.pilotDisabled[_unit:getPlayerName().."_".._unit:getName()] = {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc="",noPilot = true,unitId=_unit:getID(), player=_unit:getPlayerName(), name=_unit:getName() }
+
+            -- disable aircraft
+
+            -- strip special characters from name gsub('%W','')
+            trigger.action.setUserFlag("CSAR_AIRCRAFT".._unit:getPlayerName():gsub('%W','').."_".._unit:getID(),100)
+
+            env.info("Unit Disabled for player : ".._unit:getName())
+
         end
-
-        csar.pilotDisabled[_unit:getPlayerName().."_".._unit:getName()] = {timeout =  (csar.disableTimeoutTime*60) + timer.getTime(),desc="",noPilot = true,unitId=_unit:getID(), player=_unit:getPlayerName(), name=_unit:getName() }
-
-        -- disable aircraft
-
-        -- strip special characters from name gsub('%W','')
-        trigger.action.setUserFlag("CSAR_AIRCRAFT".._unit:getPlayerName():gsub('%W','').."_".._unit:getID(),100)
-
-        env.info("Unit Disabled for player : ".._unit:getName())
-
-    end
 
     elseif csar.csarMode == 3 then -- No Disable - Just reduce player lives
 
@@ -477,10 +504,7 @@ function csar.handleEjectOrCrash(_unit,_crashed)
 
             csar.pilotLives[_unit:getPlayerName()] = _lives - 1
 
-
-
             trigger.action.setUserFlag("CSAR_PILOT".._unit:getPlayerName():gsub('%W',''),_lives-1)
-
 
         end
 
@@ -523,6 +547,12 @@ function csar.enableAircraft(_name,_playerName)
             _lives =  csar.maxLives + 1 --plus 1 because we'll use flag set to 1 to indicate NO MORE LIVES
         else
             _lives = _lives + 1 -- give back live!
+
+            if csar.maxLives + 1 <= _lives then
+                _lives =  csar.maxLives + 1 --plus 1 because we'll use flag set to 1 to indicate NO MORE LIVES
+            end
+
+
         end
 
         csar.pilotLives[_playerName] = _lives
@@ -567,11 +597,15 @@ function csar.reactivateAircraft()
 
 end
 
-function csar.checkDisabledAircraftStatus(_name)
+function csar.checkDisabledAircraftStatus(_args)
+
+    local _name = _args[1]
+    local _playerName = _args[2]
 
     local _unit = Unit.getByName(_name)
 
-    if _unit ~= nil and _unit:getPlayerName() ~= nil then
+    --if its not the same user anymore, stop checking
+    if _unit ~= nil and _unit:getPlayerName() ~= nil and _playerName == _unit:getPlayerName() then
         -- disable aircraft for ALL pilots
         if csar.csarMode == 1 then
 
@@ -607,7 +641,7 @@ function csar.checkDisabledAircraftStatus(_name)
                     return --plane destroyed
                 else
                     --check again in 10 seconds
-                    timer.scheduleFunction(csar.checkDisabledAircraftStatus, _name, timer.getTime() + 10)
+                    timer.scheduleFunction(csar.checkDisabledAircraftStatus,_args, timer.getTime() + 10)
                 end
             end
 
@@ -647,7 +681,7 @@ function csar.checkDisabledAircraftStatus(_name)
                     return --plane destroyed
                 else
                     --check again in 10 seconds
-                    timer.scheduleFunction(csar.checkDisabledAircraftStatus, _name, timer.getTime() + 10)
+                    timer.scheduleFunction(csar.checkDisabledAircraftStatus, _args, timer.getTime() + 10)
                 end
             end
 
@@ -667,6 +701,7 @@ function csar.checkDisabledAircraftStatus(_name)
 
                 csar.displayMessageToSAR(_unit,_text, 20,true)
 
+                return
 
             else
 
@@ -679,11 +714,9 @@ function csar.checkDisabledAircraftStatus(_name)
                     return --plane destroyed
                 else
                     --check again in 10 seconds
-                    timer.scheduleFunction(csar.checkDisabledAircraftStatus, _name, timer.getTime() + 10)
+                    timer.scheduleFunction(csar.checkDisabledAircraftStatus, _args, timer.getTime() + 10)
                 end
             end
-
-
 
         end
     end

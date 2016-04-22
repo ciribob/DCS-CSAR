@@ -183,6 +183,33 @@ csar.allowFARPRescue = true --allows pilot to be rescued by landing at a FARP or
 
 -- SETTINGS FOR MISSION DESIGNER ^^^^^^^^^^^^^^^^^^^*
 
+-- ***************************************************************
+-- **************** Mission Editor Functions *********************
+-- ***************************************************************
+
+-----------------------------------------------------------------
+-- Resets all life limits so everyone can spawn again. Usage:
+-- csar.resetAllPilotLives()
+--
+function csar.resetAllPilotLives()
+    csar.pilotLives = {}
+    env.info("Pilot Lives Reset!")
+end
+
+-----------------------------------------------------------------
+-- Resets all life limits so everyone can spawn again. Usage:
+-- csar.resetAllPilotLives()
+--
+function csar.resetPilotLife(_playerName)
+    csar.pilotLives[_playerName] = nil
+    env.info("Pilot life Reset!")
+end
+
+
+-- ***************************************************************
+-- **************** BE CAREFUL BELOW HERE ************************
+-- ***************************************************************
+
 -- Sanity checks of mission designer
 assert(mist ~= nil, "\n\n** HEY MISSION-DESIGNER! **\n\nMiST has not been loaded!\n\nMake sure MiST 4.0.57 or higher is running\n*before* running this script!\n")
 
@@ -214,33 +241,7 @@ csar.pilotDisabled = {} -- tracks what aircraft a pilot is disabled for
 
 csar.pilotLives = {} -- tracks how many lives a pilot has
 
-
--- ***************************************************************
--- **************** Mission Editor Functions *********************
--- ***************************************************************
-
------------------------------------------------------------------
--- Resets all life limits so everyone can spawn again. Usage:
--- csar.resetAllPilotLives()
---
-function csar.resetAllPilotLives()
-    csar.pilotLives = {}
-    env.info("Pilot Lives Reset!")
-end
-
------------------------------------------------------------------
--- Resets all life limits so everyone can spawn again. Usage:
--- csar.resetAllPilotLives()
---
-function csar.resetPilotLife(_playerName)
-    csar.pilotLives[_playerName] = nil
-    env.info("Pilot life Reset!")
-end
-
-
--- ***************************************************************
--- **************** BE CAREFUL BELOW HERE ************************
--- ***************************************************************
+csar.takenOff = {}
 
 function csar.tableLength(T)
 
@@ -272,33 +273,53 @@ function csar.eventHandler:onEvent(_event)
         if _event == nil or _event.initiator == nil then
             return false
 
+        elseif _event.id == 3 then -- taken offf
+
+            if  _event.initiator:getName() then
+                csar.takenOff[_event.initiator:getName()] = true
+            end
+
+            return true
+        elseif _event.id == 4 then -- landed
+
+            if  _event.initiator:getName() then
+                csar.takenOff[_event.initiator:getName()] = nil
+            end
+
+            return true
+
         elseif _event.id == 15 then --player entered unit
 
-        -- if its a sar heli, re-add check status script
-        for _, _heliName in pairs(csar.csarUnits) do
+            if  _event.initiator:getName() then
+                csar.takenOff[_event.initiator:getName()] = nil
+            end
 
-            if _heliName == _event.initiator:getName() then
-                -- add back the status script
-                for _woundedName, _groupInfo in pairs(csar.woundedGroups) do
+            -- if its a sar heli, re-add check status script
+            for _, _heliName in pairs(csar.csarUnits) do
 
-                    if _groupInfo.side == _event.initiator:getCoalition() then
+                if _heliName == _event.initiator:getName() then
+                    -- add back the status script
+                    for _woundedName, _groupInfo in pairs(csar.woundedGroups) do
 
-                        --env.info(string.format("Schedule Respawn %s %s",_heliName,_woundedName))
-                        -- queue up script
-                        -- Schedule timer to check when to pop smoke
-                        timer.scheduleFunction(csar.checkWoundedGroupStatus, { _heliName, _woundedName }, timer.getTime() + 5)
+                        if _groupInfo.side == _event.initiator:getCoalition() then
+
+                            --env.info(string.format("Schedule Respawn %s %s",_heliName,_woundedName))
+                            -- queue up script
+                            -- Schedule timer to check when to pop smoke
+                            timer.scheduleFunction(csar.checkWoundedGroupStatus, { _heliName, _woundedName }, timer.getTime() + 5)
+                        end
                     end
                 end
             end
-        end
 
-        if  _event.initiator:getName() and  _event.initiator:getPlayerName() then
+            if  _event.initiator:getName() and  _event.initiator:getPlayerName() then
 
-            env.info("Checking Unit - ".._event.initiator:getName())
-            csar.checkDisabledAircraftStatus({_event.initiator:getName(), _event.initiator:getPlayerName() })
-        end
+                env.info("Checking Unit - ".._event.initiator:getName())
+                csar.checkDisabledAircraftStatus({_event.initiator:getName(), _event.initiator:getPlayerName() })
+            end
 
-        return true
+            return true
+
         elseif (_event.id == 9) then
             -- Pilot dead
 
@@ -321,11 +342,13 @@ function csar.eventHandler:onEvent(_event)
             end
 
             -- Catch multiple events here?
+            if csar.takenOff[_event.initiator:getName()] == true then
 
-            trigger.action.outTextForCoalition(_unit:getCoalition(), "MAYDAY MAYDAY! " .._unit:getTypeName() .. " shot down. No Chute!", 10)
-
-            csar.handleEjectOrCrash(_unit, true)
-
+                trigger.action.outTextForCoalition(_unit:getCoalition(), "MAYDAY MAYDAY! " .._unit:getTypeName() .. " shot down. No Chute!", 10)
+                csar.handleEjectOrCrash(_unit, true)
+            else
+                env.info("Pilot Hasnt taken off, ignore")
+            end
 
             return
 
@@ -355,6 +378,12 @@ function csar.eventHandler:onEvent(_event)
 
                 return
             end
+
+            if csar.takenOff[_event.initiator:getName()] ~= true then
+                env.info("Pilot Hasnt taken off, ignore")
+                return -- give up, pilot hasnt taken off
+            end
+
 
             local _spawnedGroup = csar.spawnGroup(_unit)
             csar.addSpecialParametersToGroup(_spawnedGroup)
@@ -394,6 +423,8 @@ function csar.eventHandler:onEvent(_event)
                     --    env.info("Unit Nil on Landing")
                     return -- error!
                 end
+
+                csar.takenOff[_event.initiator:getName()] = nil
 
                 local _place = _event.place
 

@@ -1,43 +1,93 @@
 local csarSlotBlock = {} -- DONT REMOVE!!!
 --[[
 
-   CSAR Slot Blocking - V1.8.4
+   CSAR Slot Blocking - V1.9.0
    
    Put this file in C:/Users/<YOUR USERNAME>/DCS/Scripts for 1.5 or C:/Users/<YOUR USERNAME>/DCS.openalpha/Scripts for 2.0
    
    This script will use flags to disable and enable slots when a pilot is shot down and ejects.
 
-   The flags will not interfere with mission flags
-
-
+   The flags will NOT interfere with mission flags
 
  ]]
 
 csarSlotBlock.showEnabledMessage = true -- if set to true, the player will be told that the slot is enabled when switching to it
-csarSlotBlock.version = "1.8.4"
+csarSlotBlock.version = "1.9.0"
 
 -- Logic for determining if player is allowed in a slot
 function csarSlotBlock.shouldAllowSlot(_playerID, _slotID) -- _slotID == Unit ID unless its multi aircraft in which case slotID is unitId_seatID
 
+if csarSlotBlock.csarSlotBlockEnabled() then
 
     local _unitId = csarSlotBlock.getUnitId(_slotID);
 
-    local _status,_error  = net.dostring_in('server', " return trigger.misc.getUserFlag(\"CSAR_".._unitId.."\"); ")
+    local _mode = csarSlotBlock.csarMode()
 
-    if not _status and _error then
-        net.log("error getting flag: ".._error)
+    if _mode == 1  then
+        -- disable aircraft for ALL pilots
+
+        local _flag = csarSlotBlock.getFlagValue("CSAR_AIRCRAFT".._unitId)
+
+        if _flag == 100 then
+            return false
+        end
+
         return true
-    else
-      --  net.log("flag value ".._unitId.." value: ".._status)
 
-        --disabled
-        if tonumber(_status) == 100 then
+
+    elseif _mode == 2 then
+        -- disable aircraft for a certain player
+
+        local _playerName = net.get_player_info(_playerID, 'name')
+
+        if _playerName == nil then
+            return true
+        end
+
+        local _flag = csarSlotBlock.getFlagValue("CSAR_AIRCRAFT".._playerName:gsub('%W','').."_".._unitId)
+
+        if _flag == 100 then
+            return false
+        end
+
+        return true
+
+    elseif _mode == 3 then
+        -- global lives limit
+
+        local _playerName = net.get_player_info(_playerID, 'name')
+
+        if _playerName == nil then
+            return true
+        end
+
+        local _flag = csarSlotBlock.getFlagValue("CSAR_PILOT".._playerName:gsub('%W',''))
+
+        if _flag == 1 then
             return false
         else
             return true
         end
-    end
 
+    end
+end
+    return true
+
+end
+
+function csarSlotBlock.getFlagValue(_flag)
+
+    local _status,_error  = net.dostring_in('server', " return trigger.misc.getUserFlag(\"".._flag.."\"); ")
+
+    if not _status and _error then
+        net.log("error getting flag: ".._error)
+        return 0
+    else
+        --  net.log("flag value ".._unitId.." value: ".._status)
+
+        --disabled
+        return tonumber(_status)
+    end
 end
 
 -- _slotID == Unit ID unless its multi aircraft in which case slotID is unitId_seatID
@@ -74,10 +124,10 @@ csarSlotBlock.onGameEvent = function(eventName,playerID,arg2,arg3,arg4) -- This 
     if  DCS.isServer() and DCS.isMultiplayer() then
         if DCS.getModelTime() > 1 then  -- must check this to prevent a possible CTD by using a_do_script before the game is ready to use a_do_script. -- Source GRIMES :)
 
-            if eventName ~= "connect"
-                    and eventName ~= "disconnect"
-                    and eventName ~= "mission_end"
-                    and eventName ~=  "change_slot" then
+            if eventName == "self_kill"
+                    or eventName == "crash"
+                    or eventName == "eject"
+                    or eventName ==  "pilot_death" then
 
                 -- is player in a slot and valid?
                 local _playerDetails = net.get_player_info(playerID)
@@ -98,7 +148,7 @@ end
 
 csarSlotBlock.onPlayerTryChangeSlot = function(playerID, side, slotID)
 
-  	if  DCS.isServer() and DCS.isMultiplayer() then
+    if  DCS.isServer() and DCS.isMultiplayer() then
         if  (side ~=0 and  slotID ~='' and slotID ~= nil)  then
 
             local _allow = csarSlotBlock.shouldAllowSlot(playerID,slotID)
@@ -109,21 +159,21 @@ csarSlotBlock.onPlayerTryChangeSlot = function(playerID, side, slotID)
                 return false
             else
 
-            	local _playerName = net.get_player_info(playerID, 'name')
+                local _playerName = net.get_player_info(playerID, 'name')
 
-	            if _playerName ~= nil and csarSlotBlock.showEnabledMessage and
-                        csarSlotBlock.csarSlotBlockEnabled() then
-	                --Disable chat message to user
-	                local _chatMessage = string.format("*** %s - Aircraft Enabled! If you eject you will need to be rescued by CSAR. Protect the Helis! ***",_playerName)
-	                net.send_chat_to(_chatMessage, playerID)
-	            end
+                if _playerName ~= nil and csarSlotBlock.showEnabledMessage and
+                        csarSlotBlock.csarSlotBlockEnabled() and csarSlotBlock.csarMode() > 0 then
+                    --Disable chat message to user
+                    local _chatMessage = string.format("*** %s - Aircraft Enabled! If you will need to be rescued by CSAR. Make sure you eject and Protect the Helis! ***",_playerName)
+                    net.send_chat_to(_chatMessage, playerID)
+                end
 
             end
-            
-        end
 
-        net.log("CSAR - allowing -  playerid: "..playerID.." side:"..side.." slot: "..slotID)
-	end
+            net.log("CSAR - allowing -  playerid: "..playerID.." side:"..side.." slot: "..slotID)
+
+        end
+    end
 
     return true
 
@@ -131,21 +181,18 @@ end
 
 csarSlotBlock.csarSlotBlockEnabled = function()
 
-    local _status,_error  = net.dostring_in('server', " return trigger.misc.getUserFlag(\"CSAR_SLOTBLOCK\"); ")
+    local _res = csarSlotBlock.getFlagValue("CSAR_SLOTBLOCK")
 
-    if not _status and _error then
-        net.log("error getting flag: ".._error)
-        return false
-    else
-        --  net.log("flag value ".._unitId.." value: ".._status)
+    return _res == 100
 
-        --disabled
-        if tonumber(_status) == 100 then
-            return true
-        else
-            return false
-        end
-    end
+end
+
+
+csarSlotBlock.csarMode = function()
+
+    local _mode = csarSlotBlock.getFlagValue("CSAR_MODE")
+
+    return _mode
 
 end
 

@@ -192,6 +192,12 @@ csar.allowFARPRescue = true --allows pilot to be rescued by landing at a FARP or
 -- csar.resetAllPilotLives()
 --
 function csar.resetAllPilotLives()
+
+    for x, _pilot in pairs(csar.pilotLives) do
+
+        trigger.action.setUserFlag("CSAR_PILOT".._pilot:gsub('%W',''),csar.maxLives+1)
+    end
+    
     csar.pilotLives = {}
     env.info("Pilot Lives Reset!")
 end
@@ -201,7 +207,11 @@ end
 -- csar.resetAllPilotLives()
 --
 function csar.resetPilotLife(_playerName)
+    
     csar.pilotLives[_playerName] = nil
+
+    trigger.action.setUserFlag("CSAR_PILOT".._playerName:gsub('%W',''),csar.maxLives+1)
+
     env.info("Pilot life Reset!")
 end
 

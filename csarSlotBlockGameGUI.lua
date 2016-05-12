@@ -1,7 +1,7 @@
 local csarSlotBlock = {} -- DONT REMOVE!!!
 --[[
 
-   CSAR Slot Blocking - V1.9.0
+   CSAR Slot Blocking - V1.9.1
    
    Put this file in C:/Users/<YOUR USERNAME>/DCS/Scripts for 1.5 or C:/Users/<YOUR USERNAME>/DCS.openalpha/Scripts for 2.0
    
@@ -12,7 +12,7 @@ local csarSlotBlock = {} -- DONT REMOVE!!!
  ]]
 
 csarSlotBlock.showEnabledMessage = true -- if set to true, the player will be told that the slot is enabled when switching to it
-csarSlotBlock.version = "1.9.0"
+csarSlotBlock.version = "1.9.1"
 
 -- Logic for determining if player is allowed in a slot
 function csarSlotBlock.shouldAllowSlot(_playerID, _slotID) -- _slotID == Unit ID unless its multi aircraft in which case slotID is unitId_seatID

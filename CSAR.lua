@@ -177,6 +177,10 @@ csar.loadDistance = 60 -- configure distance for pilot to get in helicopter in m
 
 csar.radioSound = "beacon.ogg" -- the name of the sound file to use for the Pilot radio beacons. If this isnt added to the mission BEACONS WONT WORK!
 
+csar.distressSound = "distress.ogg" -- distress beacon, needs to be added to mission. will transmit to planes listening guard and withing range
+
+csar.guardDistress = true -- 243.000MHz and 121.500MHz will transmit distress signal in addition normal beacon navigation
+
 csar.allowFARPRescue = true --allows pilot to be rescued by landing at a FARP or Airbase
 
 -- SETTINGS FOR MISSION DESIGNER ^^^^^^^^^^^^^^^^^^^*
@@ -788,10 +792,19 @@ csar.addBeaconToGroup = function(_woundedGroupName, _freq)
     end
 
     local _sound = "l10n/DEFAULT/" .. csar.radioSound
-
-    trigger.action.radioTransmission(_sound, _group:getUnit(1):getPoint(), 0, false, _freq, 1000)
-
-    timer.scheduleFunction(csar.refreshRadioBeacon, { _woundedGroupName, _freq }, timer.getTime() + 30)
+    local _distress = "l10n/DEFAULT/" .. csar.distressSound
+    
+		if csar.guardDistress then
+			trigger.action.radioTransmission(_distress, _group:getUnit(1):getPoint(), 0, true, 243000000, 10)
+			trigger.action.radioTransmission(_distress, _group:getUnit(1):getPoint(), 0, true, 121500000, 10)
+			trigger.action.radioTransmission(_sound, _group:getUnit(1):getPoint(), 0, false, _freq, 1000)
+				
+			timer.scheduleFunction(csar.refreshRadioBeacon, { _woundedGroupName, _freq }, timer.getTime() + 30)
+				
+		else
+			trigger.action.radioTransmission(_sound, _group:getUnit(1):getPoint(), 0, false, _freq, 1000)
+				
+			timer.scheduleFunction(csar.refreshRadioBeacon, { _woundedGroupName, _freq }, timer.getTime() + 30)
 end
 
 csar.refreshRadioBeacon = function(_args)

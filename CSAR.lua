@@ -344,6 +344,10 @@ function csar.eventHandler:onEvent(_event)
             -- Catch multiple events here?
             if csar.takenOff[_event.initiator:getName()] == true or _unit:inAir() then
 
+                if csar.doubleEjection(_unit) then
+                    return
+                end
+
                 trigger.action.outTextForCoalition(_unit:getCoalition(), "MAYDAY MAYDAY! " .. _unit:getTypeName() .. " shot down. No Chute!", 10)
                 csar.handleEjectOrCrash(_unit, true)
             else
@@ -383,6 +387,11 @@ function csar.eventHandler:onEvent(_event)
                 env.info("Pilot Hasnt taken off, ignore")
                 return -- give up, pilot hasnt taken off
             end
+
+            if csar.doubleEjection(_unit) then
+                return
+            end
+
 
 
             local _spawnedGroup = csar.spawnGroup(_unit)
@@ -455,6 +464,24 @@ function csar.eventHandler:onEvent(_event)
     if (not status) then
         env.error(string.format("Error while handling event %s", err), false)
     end
+end
+
+csar.lastCrash = {}
+
+function csar.doubleEjection(_unit)
+
+    if csar.lastCrash[_unit:getName()] then
+        local _time = csar.lastCrash[_unit:getTime()]
+
+        if timer.getTime() - _time < 10 then
+            env.info("Caught double ejection!")
+            return true
+        end
+    end
+
+    csar.lastCrash[_unit:getName()] = timer.getTime()
+
+    return false
 end
 
 function csar.handleEjectOrCrash(_unit, _crashed)

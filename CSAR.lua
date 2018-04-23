@@ -1,5 +1,5 @@
 -- CSAR Script for DCS Ciribob - 2015
--- Version 1.9.1 - 12/05/2016
+-- Version 1.9.2 - 23/04/2018
 -- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 --
 -- 4 Options:
@@ -471,7 +471,7 @@ csar.lastCrash = {}
 function csar.doubleEjection(_unit)
 
     if csar.lastCrash[_unit:getName()] then
-        local _time = csar.lastCrash[_unit:getTime()]
+        local _time = csar.lastCrash[_unit:getName()]
 
         if timer.getTime() - _time < 10 then
             env.info("Caught double ejection!")

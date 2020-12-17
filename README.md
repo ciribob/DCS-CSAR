@@ -31,6 +31,8 @@ csar.maxLives = 8 -- Maximum pilot lives
 
 csar.countCSARCrash = false -- If you set to true, pilot lives count for CSAR and CSAR aircraft will count.
 
+csar.csarOncrash = true -- If set to true, will generate CSAR even when crash
+
 csar.reenableIfCSARCrashes = true -- If a CSAR heli crashes, the pilots are counted as rescued anyway. Set to false to Stop this
 
 -- - I recommend you leave the option on below IF USING MODE 1 otherwise the

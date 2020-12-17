@@ -8,6 +8,8 @@
 --      2 - Disable Aircraft for Pilot when he's shot down -- timeout to reenable pilot for aircraft
 --      3 - Pilot Life Limit - No Aircraft Disabling 
 
+
+
 csar = {}
 
 -- SETTINGS FOR MISSION DESIGNER vvvvvvvvvvvvvvvvvv
@@ -139,6 +141,8 @@ csar.csarMode = 0
 csar.maxLives = 8 -- Maximum pilot lives
 
 csar.countCSARCrash = false -- If you set to true, pilot lives count for CSAR and CSAR aircraft will count.
+
+csar.csarOncrash = true -- If set to true, will generate a csar when crash as well.
 
 csar.reenableIfCSARCrashes = true -- If a CSAR heli crashes, the pilots are counted as rescued anyway. Set to false to Stop this
 
@@ -320,7 +324,7 @@ function csar.eventHandler:onEvent(_event)
 
         return true
 
-      --[[  elseif (_event.id == 9) then
+        elseif (_event.id == 9 and csar.csarOncrash == false) then
             -- Pilot dead
 
             env.info("Event unit - Pilot Dead")
@@ -355,9 +359,11 @@ function csar.eventHandler:onEvent(_event)
             end
 
             return
-]]
-        elseif _event.id == 9 or world.event.S_EVENT_EJECTION == _event.id then
 
+        elseif _event.id == 9 or world.event.S_EVENT_EJECTION == _event.id then
+            if _event.id == 9 and csar.csarOncrash == false then 
+                return     
+            end
             env.info("Event unit - Pilot Ejected")
 
             local _unit = _event.initiator

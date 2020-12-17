@@ -320,7 +320,7 @@ function csar.eventHandler:onEvent(_event)
 
         return true
 
-        elseif (_event.id == 9) then
+      --[[  elseif (_event.id == 9) then
             -- Pilot dead
 
             env.info("Event unit - Pilot Dead")
@@ -355,8 +355,8 @@ function csar.eventHandler:onEvent(_event)
             end
 
             return
-
-        elseif world.event.S_EVENT_EJECTION == _event.id then
+]]
+        elseif _event.id == 9 or world.event.S_EVENT_EJECTION == _event.id then
 
             env.info("Event unit - Pilot Ejected")
 

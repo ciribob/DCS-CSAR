@@ -153,7 +153,7 @@ csar.disableTimeoutTime = 20 -- Time in minutes for TIMEOUT
 
 csar.destructionHeight = 150 -- height in meters an aircraft will be destroyed at if the aircraft is disabled
 
-csar.enableForAI = false -- set to false to disable AI units from being rescued.
+csar.enableForAI = true -- set to false to disable AI units from being rescued.
 
 csar.enableForRED = true -- enable for red side
 

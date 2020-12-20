@@ -74,6 +74,8 @@ csar.csarOncrash = true -- If set to true, will generate a csar when crash as we
 
 csar.allowDownedPilotCAcontrol = true -- Set to false if you don't want to allow control by Combined arms
 
+
+
 csar.reenableIfCSARCrashes = true -- If a CSAR heli crashes, the pilots are counted as rescued anyway. Set to false to Stop this
 
 -- - I recommend you leave the option on below IF USING MODE 1 otherwise the
@@ -109,12 +111,17 @@ csar.messageTime = 30 -- Time to show the intial wounded message for in seconds
 
 csar.weight = 100
 
+csar.pilotRuntoExtractPoint = true -- Downed Pilot will run to the rescue helicopter up to csar.extractDistance METERS 
+
 csar.loadDistance = 60 -- configure distance for pilot to get in helicopter in meters.
+csar.extractDistance = 500 -- Distance the Downed pilot will run to the rescue helicopter
+csar.loadtimemax = 135
 
 csar.radioSound = "beacon.ogg" -- the name of the sound file to use for the Pilot radio beacons. If this isnt added to the mission BEACONS WONT WORK!
 
 csar.allowFARPRescue = true --allows pilot to be rescued by landing at a FARP or Airbase
 
+csar.landedStatus = {} -- tracks status of a helis hover above a downed pilot
 -- SETTINGS FOR MISSION DESIGNER ^^^^^^^^^^^^^^^^^^^*
 
 -- ***************************************************************
@@ -1024,7 +1031,47 @@ function csar.pickupUnit(_heliUnit, _pilotName, _woundedGroup, _woundedGroupName
 
     return true
 end
+function csar.getAliveGroup(_groupName)
 
+    local _group = Group.getByName(_groupName)
+
+    if _group and _group:isExist() == true and #_group:getUnits() > 0 then
+        return _group
+    end
+
+    return nil
+end
+function csar.orderGroupToMoveToPoint(_leader, _destination)
+
+    local _group = _leader:getGroup()
+
+    local _path = {}
+    table.insert(_path, mist.ground.buildWP(_leader:getPoint(), 'Off Road', 50))
+    table.insert(_path, mist.ground.buildWP(_destination, 'Off Road', 50))
+
+    local _mission = {
+        id = 'Mission',
+        params = {
+            route = {
+                points =_path
+            },
+        },
+    }
+
+    -- delayed 2 second to work around bug
+    timer.scheduleFunction(function(_arg)
+        local _grp = csar.getAliveGroup(_arg[1])
+
+        if _grp ~= nil then
+            local _controller = _grp:getController();
+            Controller.setOption(_controller, AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.GREEN)
+            Controller.setOption(_controller, AI.Option.Ground.id.ROE, AI.Option.Ground.val.ROE.WEAPON_HOLD)
+            _controller:setTask(_arg[2])
+        end
+    end
+        , {_group:getName(), _mission}, timer.getTime() + 2)
+
+end
 
 -- Helicopter is within 3km
 function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGroup, _woundedGroupName)
@@ -1037,13 +1084,17 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
     local _woundedCount = 1
 
     local _reset = true
+    
     if csar.autosmoke == true then
-    csar.popSmokeForGroup(_woundedGroupName, _woundedLeader)
+        csar.popSmokeForGroup(_woundedGroupName, _woundedLeader)
     end
+    
     if csar.heliVisibleMessage[_lookupKeyHeli] == nil then
-
-        csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. I hear you! Damn that thing is loud! Land or hover by the smoke.", _heliName, _pilotName), 30)
-
+        if csar.autosmoke == true then
+          csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. I hear you! Damn that thing is loud! Land or hover by the smoke.", _heliName, _pilotName), 30)
+        else
+          csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. I hear you! Damn that thing is loud! Request a Flare or Smoke if you need", _heliName, _pilotName), 30)
+        end
         --mark as shown for THIS heli and THIS group
         csar.heliVisibleMessage[_lookupKeyHeli] = true
     end
@@ -1051,9 +1102,11 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
     if (_distance < 500) then
 
         if csar.heliCloseMessage[_lookupKeyHeli] == nil then
-
-            csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. You're close now! Land or hover at the smoke.", _heliName, _pilotName), 10)
-
+            if csar.autosmoke == true then
+              csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. You're close now! Land or hover at the smoke.", _heliName, _pilotName), 10)
+            else
+              csar.displayMessageToSAR(_heliUnit, string.format("%s: %s. You're close now! Land in a safe place, i will go there ", _heliName, _pilotName), 10)
+            end
             --mark as shown for THIS heli and THIS group
             csar.heliCloseMessage[_lookupKeyHeli] = true
         end
@@ -1062,11 +1115,29 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
         if csar.inAir(_heliUnit) == false then
 
             -- if you land on them, doesnt matter if they were heading to someone else as you're closer, you win! :)
+          if csar.pilotRuntoExtractPoint == true then
+              if (_distance < csar.extractDistance) then
+                local _time = csar.landedStatus[_lookupKeyHeli]
+                if _time == nil then
+                    --csar.displayMessageToSAR(_heliUnit, "Landed at " .. _distance, 10, true)
+                    csar.landedStatus[_lookupKeyHeli] = math.floor( (_distance * csar.loadtimemax ) / csar.extractDistance )   
+                    _time = csar.landedStatus[_lookupKeyHeli] 
+                    csar.orderGroupToMoveToPoint(_woundedLeader, _heliUnit:getPoint())
+                    csar.displayMessageToSAR(_heliUnit, "Wait till " .. _pilotName .. ". Gets in \n\n" .. _time .. " more seconds.", 10, true)
+                else
+                    _time = csar.landedStatus[_lookupKeyHeli] - 1
+                    csar.landedStatus[_lookupKeyHeli] = _time
+                end
+                if _time <= 0 then
+                   csar.landedStatus[_lookupKeyHeli] = nil
+                   return csar.pickupUnit(_heliUnit, _pilotName, _woundedGroup, _woundedGroupName)
+                end
+              end
+          else
             if (_distance < csar.loadDistance) then
-
                 return csar.pickupUnit(_heliUnit, _pilotName, _woundedGroup, _woundedGroupName)
             end
-
+          end
         else
 
             local _unitsInHelicopter = csar.pilotsOnboard(_heliName)

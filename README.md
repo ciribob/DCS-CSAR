@@ -49,6 +49,8 @@ csar.countCSARCrash = false -- If you set to true, pilot lives count for CSAR an
 
 csar.csarOncrash = true -- If set to true, will generate CSAR even when crash
 
+csar.pilotRuntoExtractPoint = true -- Downed Pilot will run to the rescue helicopter up to csar.extractDistance METERS 
+
 csar.autosmoke = false -- Automatically Smoke when CSAR helicopter is at 5 km
 
 csar.allowDownedPilotCAcontrol = true -- Set to false if you don't want to allow control by Combined arms

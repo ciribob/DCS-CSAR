@@ -20,6 +20,22 @@ The script has lots of configuration options that can be used to further customi
 
 ````lua
 
+csar.enableAllslots = true  -- Doesn't require to set the Unit name check Aircraft Type and Limit below
+csar.useprefix    = false  -- Use the Prefixed defined below, Requires Unit have the Prefix defined below
+-- Prefix settting
+csar.csarPrefix = { "helicargo", "MEDEVAC"}
+
+-- All slot / Limit settings
+csar.aircraftType = {} -- Type and limit
+csar.aircraftType["SA342Mistral"] = 2
+csar.aircraftType["SA342Minigun"] = 2
+csar.aircraftType["SA342L"] = 2
+csar.aircraftType["SA342M"] = 2
+csar.aircraftType["UH-1H"] = 8
+csar.aircraftType["Mi-8MT"] = 16
+
+
+
 csar.csarMode = 0
 
     --      0 - No Limit - NO Aircraft disabling
@@ -33,6 +49,10 @@ csar.countCSARCrash = false -- If you set to true, pilot lives count for CSAR an
 
 csar.csarOncrash = true -- If set to true, will generate CSAR even when crash
 
+csar.autosmoke = false -- Automatically Smoke when CSAR helicopter is at 5 km
+
+csar.allowDownedPilotCAcontrol = true -- Set to false if you don't want to allow control by Combined arms
+
 csar.reenableIfCSARCrashes = true -- If a CSAR heli crashes, the pilots are counted as rescued anyway. Set to false to Stop this
 
 -- - I recommend you leave the option on below IF USING MODE 1 otherwise the
@@ -43,6 +63,8 @@ csar.disableTimeoutTime = 10 -- Time in minutes for TIMEOUT
 csar.destructionHeight = 150 -- height in meters an aircraft will be destroyed at if the aircraft is disabled
 
 csar.enableForAI = false -- set to false to disable AI units from being rescued.
+
+csar.weight = 100  -- Downed pilot weight when picked up
 
 csar.enableForRED = true -- enable for red side
 

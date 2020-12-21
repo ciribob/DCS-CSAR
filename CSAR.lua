@@ -32,7 +32,7 @@ csar.csarPrefix = { "helicargo", "MEDEVAC"}
 
 -- Fixed Unit Name.
 --Enable Csar Options for the units with the names in the list below                  
-csar.csarUnits =  {
+csar.csarFixedUnits =  {
     "helicargo1",
     "helicargo2",
     "helicargo3",
@@ -215,6 +215,8 @@ csar.radioSound = "beacon.ogg" -- the name of the sound file to use for the Pilo
 csar.allowFARPRescue = true --allows pilot to be rescued by landing at a FARP or Airbase
 
 csar.landedStatus = {} -- tracks status of a helis hover above a downed pilot
+
+csar.csarUnits =  {}
 -- SETTINGS FOR MISSION DESIGNER ^^^^^^^^^^^^^^^^^^^*
 
 -- ***************************************************************
@@ -309,6 +311,73 @@ function csar.pilotsOnboard(_heliName)
     return count
 end
 
+function csar.addCsar(_coalition , _country, _point, _typeName, _unitName, _playerName, _freq, noMessage, _description )
+      
+  local _spawnedGroup = csar.spawnGroup( _coalition, _country, _point, _typeName )
+  csar.addSpecialParametersToGroup(_spawnedGroup)
+  
+  if noMessage ~= true then
+    trigger.action.outTextForCoalition(_spawnedGroup:getCoalition(), "MAYDAY MAYDAY! " .. _typeName .. " is down. ", 10)
+  end
+  
+  if _freq == nil then
+    _freq = csar.generateADFFrequency()
+  end 
+  
+  if _freq ~= nil then
+    csar.addBeaconToGroup(_spawnedGroup:getName(), _freq)
+  end
+  
+  
+  csar.handleEjectOrCrash(_playerName, false)
+  
+-- Generate DESCRIPTION text
+  local _text = " "
+  if _playerName ~= nil then
+      _text = "Pilot " .. _playerName .. " of " .. _unitName .. " - " .. _typeName
+  elseif _typeName ~= nil then
+      _text = "AI Pilot of " .. _unitName .. " - " .. _typeName
+  else
+      _text = _description
+  end
+  
+  csar.woundedGroups[_spawnedGroup:getName()] = { side = _spawnedGroup:getCoalition(), originalUnit = _unitName, desc = _text, typename = _typeName, frequency = _freq, player = _playerName }
+ 
+  csar.initSARForPilot(_spawnedGroup, _freq, noMessage)
+  
+  if _spawnedGroup ~= nil then
+     local _controller = _spawnedGroup:getController();
+     Controller.setOption(_controller, AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.GREEN)
+     Controller.setOption(_controller, AI.Option.Ground.id.ROE, AI.Option.Ground.val.ROE.WEAPON_HOLD)
+  end
+
+end
+
+function csar.spawnCsarAtZone( _zone, _coalition, _description, _randomPoint)
+  local _country 
+  local freq = csar.generateADFFrequency()
+  local _triggerZone = trigger.misc.getZone(_zone) -- trigger to use as reference position
+  if _triggerZone == nil then
+    trigger.action.outText("Csar.lua ERROR: Cant find zone called " .. _zone, 10)
+    return
+  end
+  
+  local pos
+  if _randomPoint == true then
+    pos =  mist.getRandomPointInZone(_zone)
+    pos.z = pos.y
+    pos.y = 0
+  else
+    pos  = mist.utils.zoneToVec3(_zone)
+  end
+  if _coalition == coalition.side.BLUE then
+    _country = country.id.USA
+  else
+    _country =  country.id.RUSSIA
+  end
+  csar.addCsar(_coalition, _country, pos, nil, nil, nil, freq, true, _description)
+
+end
 -- Handles all world events
 csar.eventHandler = {}
 function csar.eventHandler:onEvent(_event)
@@ -434,30 +503,9 @@ function csar.eventHandler:onEvent(_event)
 
 
 
-            local _spawnedGroup = csar.spawnGroup(_unit)
-            csar.addSpecialParametersToGroup(_spawnedGroup)
-
-            trigger.action.outTextForCoalition(_unit:getCoalition(), "MAYDAY MAYDAY! " .. _unit:getTypeName() .. " shot down. Chute Spotted!", 10)
-
             local _freq = csar.generateADFFrequency()
-
-            csar.addBeaconToGroup(_spawnedGroup:getName(), _freq)
-
-            --handle lives and plane disabling
-            csar.handleEjectOrCrash(_unit, false)
-
-            -- Generate DESCRIPTION text
-            local _text = " "
-            if _unit:getPlayerName() ~= nil then
-                _text = "Pilot " .. _unit:getPlayerName() .. " of " .. _unit:getName() .. " - " .. _unit:getTypeName()
-            else
-                _text = "AI Pilot of " .. _unit:getName() .. " - " .. _unit:getTypeName()
-            end
-
-            csar.woundedGroups[_spawnedGroup:getName()] = { side = _spawnedGroup:getCoalition(), originalUnit = _unit:getName(), frequency = _freq, desc = _text, player = _unit:getPlayerName() }
-
-            csar.initSARForPilot(_spawnedGroup, _freq)
-
+             csar.addCsar(_coalition, _unit:getCountry(), _unit:getPoint()  , _unit:getTypeName(),  _unit:getName(), _unit:getPlayerName(), _freq, false, 0)
+             
             return true
 
         elseif world.event.S_EVENT_LAND == _event.id then
@@ -894,15 +942,15 @@ csar.addSpecialParametersToGroup = function(_spawnedGroup)
     end
 end
 
-function csar.spawnGroup(_deadUnit)
+function csar.spawnGroup( _coalition, _country, _point, _typeName )
 
     local _id = mist.getNextGroupId()
 
     local _groupName = "Downed Pilot #" .. _id
 
-    local _side = _deadUnit:getCoalition()
+   local _side = _coalition
 
-    local _pos = _deadUnit:getPoint()
+     local _pos = _point
 
     local _group = {
         ["visible"] = false,
@@ -920,7 +968,7 @@ function csar.spawnGroup(_deadUnit)
     end
 
     _group.category = Group.Category.GROUND;
-    _group.country = _deadUnit:getCountry();
+    _group.country = _country;
 
     local _spawnedGroup = Group.getByName(mist.dynAdd(_group).name)
 
@@ -1014,22 +1062,27 @@ function csar.checkWoundedGroupStatus(_argument)
         -- if wounded group is not here then message alread been sent to SARs
         -- stop processing any further
         if csar.woundedGroups[_woundedGroupName] == nil then
-                  
             return
         end
-
+        
+        local _woundedLeader = _woundedGroup[1]
+        local _lookupKeyHeli = _heliName .. "_" .. _woundedLeader:getID() --lookup key for message state tracking
+                
         if _heliUnit == nil then
             -- stop wounded moving, head back to smoke as target heli is DEAD
 
             -- in transit cleanup
             --  csar.inTransitGroups[_heliName] = nil
-            local _woundedLeader = _woundedGroup[1]
-            local _lookupKeyHeli = _heliName .. "_" .. _woundedLeader:getID() --lookup key for message state tracking
+  
             csar.heliVisibleMessage[_lookupKeyHeli] = nil
             csar.heliCloseMessage[_lookupKeyHeli] = nil
             csar.landedStatus[_lookupKeyHeli] = nil
+            
             return
         end
+        
+
+        
 
         -- double check that this function hasnt been queued for the wrong side
 
@@ -1227,6 +1280,7 @@ function csar.checkCloseWoundedGroup(_distance, _heliUnit, _heliName, _woundedGr
                 else
                     _time = csar.landedStatus[_lookupKeyHeli] - 1
                     csar.landedStatus[_lookupKeyHeli] = _time
+
                 end
                 if _time <= 0 then
                    csar.landedStatus[_lookupKeyHeli] = nil
@@ -1826,6 +1880,18 @@ function csar.addMedevacMenuItem()
             end
                   
           end
+        end
+      end
+    end
+    
+    for key, unitName in pairs(csar.csarFixedUnits) do
+      if csar.csarUnits[unitName] == nil then
+        csar.csarUnits[unitName] = unitName
+        for _woundedName, _groupInfo in pairs(csar.woundedGroups) do
+          if _groupInfo.side == _group:getCoalition() then
+            -- Schedule timer to check when to pop smoke
+              timer.scheduleFunction(csar.checkWoundedGroupStatus, { unitName , _woundedName }, timer.getTime() + 5)
+           end
         end
       end
     end

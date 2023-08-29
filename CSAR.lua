@@ -1,5 +1,5 @@
 -- CSAR Script for DCS Ciribob - 2015
--- Version 1.9.2 - 23/04/2018
+-- Version 1.10.0 - 29/08/2023
 -- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 --
 -- 4 Options:
@@ -268,14 +268,10 @@ csar.woundedGroups = {} -- contains the new group of units
 csar.inTransitGroups = {} -- contain a table for each SAR with all units he has with the
 -- original name of the killed group
 
-csar.radioBeacons = {}
-
 csar.smokeMarkers = {} -- tracks smoke markers for groups
 csar.heliVisibleMessage = {} -- tracks if the first message has been sent of the heli being visible
 
 csar.heliCloseMessage = {} -- tracks heli close message  ie heli < 500m distance
-
-csar.radioBeacons = {} -- all current beacons
 
 csar.max_units = 6 --number of pilots that can be carried
 
@@ -885,12 +881,12 @@ function csar.heightDiff(_unit)
     return _point.y - land.getHeight({ x = _point.x, y = _point.z })
 end
 
-csar.addBeaconToGroup = function(_woundedGroupName, _freq)
-
+function csar.stopBeaconIfNeeded(_woundedGroupName, _freq)
     local _group = Group.getByName(_woundedGroupName)
 
+    
     if _group == nil then
-
+        
         --return frequency to pool of available
         for _i, _current in ipairs(csar.usedVHFFrequencies) do
             if _current == _freq then
@@ -898,20 +894,36 @@ csar.addBeaconToGroup = function(_woundedGroupName, _freq)
                 table.remove(csar.usedVHFFrequencies, _i)
             end
         end
+        
+        --compute radio beacon names
+        local _vhfBeaconName = _woundedGroupName .. "-CSAR-VHF"
+
+        -- stop the transmission 
+        trigger.action.stopRadioTransmission(_vhfBeaconName)
 
         return
     end
 
-    local _sound = "l10n/DEFAULT/" .. csar.radioSound
-
-    trigger.action.radioTransmission(_sound, _group:getUnit(1):getPoint(), 0, false, _freq, 1000)
-
-    timer.scheduleFunction(csar.refreshRadioBeacon, { _woundedGroupName, _freq }, timer.getTime() + 30)
+    -- schedule each minute to check if the beacon should stop transmitting
+    timer.scheduleFunction(csar.stopBeaconIfNeeded, { _woundedGroupName, _freq }, timer.getTime() + 60)
 end
 
-csar.refreshRadioBeacon = function(_args)
+csar.addBeaconToGroup = function(_woundedGroupName, _freq)
 
-    csar.addBeaconToGroup(_args[1], _args[2])
+    local _group = Group.getByName(_woundedGroupName)
+
+    --compute radio beacon names
+    local _vhfBeaconName = _woundedGroupName .. "-CSAR-VHF"
+
+    if _group ~= nil then
+        -- start the transmission; it is set to loop and has the name of the transmitting DCS group with the suffix "-CSAR-VHF"
+        local _sound = "l10n/DEFAULT/" .. csar.radioSound
+        trigger.action.radioTransmission(_sound, _group:getUnit(1):getPoint(), 0, true, _freq, 1000, _vhfBeaconName)
+
+        -- call the function that will stop the beacon when the group is destroyed or rescued; it'll reschedule itself
+        csar.stopBeaconIfNeeded(_woundedGroupName, _freq)
+    end
+
 end
 
 csar.addSpecialParametersToGroup = function(_spawnedGroup)

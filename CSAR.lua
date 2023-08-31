@@ -943,7 +943,11 @@ function csar.heightDiff(_unit)
     return _point.y - land.getHeight({ x = _point.x, y = _point.z })
 end
 
-function csar.stopBeaconIfNeeded(_woundedGroupName, _freq)
+function csar.stopBeaconIfNeeded(parameters)
+    csar.logDebug(string.format("csar.stopBeaconIfNeeded(parameters=%s)", csar.p(parameters)))
+    local _woundedGroupName, _freq = unpack(parameters)
+    csar.logDebug(string.format("csar.stopBeaconIfNeeded(_woundedGroupName=%s, _freq=%s)", csar.p(_woundedGroupName), csar.p(_freq)))
+
     local _group = Group.getByName(_woundedGroupName)
 
     
@@ -971,6 +975,7 @@ function csar.stopBeaconIfNeeded(_woundedGroupName, _freq)
 end
 
 csar.addBeaconToGroup = function(_woundedGroupName, _freq)
+    csar.logDebug(string.format("csar.addBeaconToGroup(_woundedGroupName=%s, _freq=%s)", csar.p(_woundedGroupName), csar.p(_freq)))
 
     local _group = Group.getByName(_woundedGroupName)
 
@@ -983,7 +988,7 @@ csar.addBeaconToGroup = function(_woundedGroupName, _freq)
         trigger.action.radioTransmission(_sound, _group:getUnit(1):getPoint(), 0, true, _freq, 1000, _vhfBeaconName)
 
         -- call the function that will stop the beacon when the group is destroyed or rescued; it'll reschedule itself
-        csar.stopBeaconIfNeeded(_woundedGroupName, _freq)
+        csar.stopBeaconIfNeeded({_woundedGroupName, _freq})
     end
 
 end
@@ -1957,7 +1962,7 @@ function csar.addMedevacMenuItem()
         end
       end
     end
-    
+
     for key, unitName in pairs(csar.csarFixedUnits) do
       if csar.csarUnits[unitName] == nil then
         csar.csarUnits[unitName] = unitName
@@ -1969,7 +1974,7 @@ function csar.addMedevacMenuItem()
         end
       end
     end
-    
+
     for _, _unitName in pairs(csar.csarUnits) do
 
         local _unit = csar.getSARHeli(_unitName)
@@ -2214,27 +2219,27 @@ function csar.initialize(force)
         return
     end
 
-csar.generateVHFrequencies()
+    csar.generateVHFrequencies()
 
--- Schedule timer to add radio item
-timer.scheduleFunction(csar.addMedevacMenuItem, nil, timer.getTime() + 5)
+    -- Schedule timer to add radio item
+    timer.scheduleFunction(csar.addMedevacMenuItem, nil, timer.getTime() + 5)
 
-if csar.disableAircraftTimeout then
-    -- Schedule timer to reactivate things
-    timer.scheduleFunction(csar.reactivateAircraft, nil, timer.getTime() + 5)
-end
+    if csar.disableAircraftTimeout then
+        -- Schedule timer to reactivate things
+        timer.scheduleFunction(csar.reactivateAircraft, nil, timer.getTime() + 5)
+    end
 
-world.addEventHandler(csar.eventHandler)
+    world.addEventHandler(csar.eventHandler)
 
     csar.logInfo("CSAR event handler added")
 
---save CSAR MODE
-trigger.action.setUserFlag("CSAR_MODE", csar.csarMode)
+    --save CSAR MODE
+    trigger.action.setUserFlag("CSAR_MODE", csar.csarMode)
 
--- disable aircraft
-if csar.enableSlotBlocking then
+    -- disable aircraft
+    if csar.enableSlotBlocking then
 
-    trigger.action.setUserFlag("CSAR_SLOTBLOCK", 100)
+        trigger.action.setUserFlag("CSAR_SLOTBLOCK", 100)
 
         csar.logInfo("CSAR Slot block enabled")
     end

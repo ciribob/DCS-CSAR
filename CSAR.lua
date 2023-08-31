@@ -1962,7 +1962,7 @@ function csar.addMedevacMenuItem()
       if csar.csarUnits[unitName] == nil then
         csar.csarUnits[unitName] = unitName
         for _woundedName, _groupInfo in pairs(csar.woundedGroups) do
-          if _groupInfo.side == _group:getCoalition() then
+          if false --[[ _group is nil here, can't ever work (see my comment https://github.com/ciribob/DCS-CSAR/commit/907524d1e97930061d5f32832523bc4f7455192d#commitcomment-126043845) _groupInfo.side == _group:getCoalition() ]] then
             -- Schedule timer to check when to pop smoke
               timer.scheduleFunction(csar.checkWoundedGroupStatus, { unitName , _woundedName }, timer.getTime() + 5)
            end

@@ -1,5 +1,5 @@
 -- CSAR Script for DCS Ciribob - 2015
--- Version 1.10.0 - 29/08/2023
+-- Version 20230831.01
 -- DCS 1.5 Compatible - Needs Mist 4.0.55 or higher!
 --
 -- 4 Options:
@@ -11,6 +11,8 @@
 
 
 csar = {}
+csar.Version = "20230831.01"
+csar.Id = "CSAR"
 
 -- SETTINGS FOR MISSION DESIGNER vvvvvvvvvvvvvvvvvv
 --Enable CSar Options -HELICOPTERS
@@ -235,7 +237,7 @@ function csar.resetAllPilotLives()
     end
 
     csar.pilotLives = {}
-    env.info("Pilot Lives Reset!")
+    csar.logInfo("Pilot Lives Reset!")
 end
 
 -----------------------------------------------------------------
@@ -248,7 +250,7 @@ function csar.resetPilotLife(_playerName)
 
     trigger.action.setUserFlag("CSAR_PILOT" .. _playerName:gsub('%W', ''), csar.maxLives + 1)
 
-    env.info("Pilot life Reset!")
+    csar.logInfo("Pilot life Reset!")
 end
 
 
@@ -284,6 +286,65 @@ csar.pilotDisabled = {} -- tracks what aircraft a pilot is disabled for
 csar.pilotLives = {} -- tracks how many lives a pilot has
 
 csar.takenOff = {}
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Logging methods
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--- print an object for a debugging log
+function csar.p(o, level)
+    local MAX_LEVEL = 20
+    if level == nil then level = 0 end
+    if level > MAX_LEVEL then
+        csar.logError("max depth reached in csar.p : "..tostring(MAX_LEVEL))
+        return ""
+    end
+    local text = ""
+    if (type(o) == "table") then
+        text = "\n"
+        for key,value in pairs(o) do
+            for i=0, level do
+                text = text .. " "
+            end
+            text = text .. ".".. key.."="..csar.p(value, level+1) .. "\n"
+        end
+    elseif (type(o) == "function") then
+        text = "[function]"
+    elseif (type(o) == "boolean") then
+        if o == true then
+            text = "[true]"
+        else
+            text = "[false]"
+        end
+    else
+        if o == nil then
+            text = "[nil]"
+        else
+            text = tostring(o)
+        end
+    end
+    return text
+end
+
+function csar.logError(message)
+    env.info(" E - " .. csar.Id .. message)
+end
+
+function csar.logInfo(message)
+    env.info(" I - " .. csar.Id .. message)
+end
+
+function csar.logDebug(message)
+    if message and csar.Debug then
+        env.info(" D - " .. csar.Id .. message)
+    end
+end
+
+function csar.logTrace(message)
+    if message and csar.Trace then
+        env.info(" T - " .. csar.Id .. message)
+    end
+end
 
 function csar.tableLength(T)
 
@@ -404,7 +465,7 @@ function csar.eventHandler:onEvent(_event)
 
                     if _groupInfo.side == _event.initiator:getCoalition() then
 
-                        --env.info(string.format("Schedule Respawn %s %s",_heliName,_woundedName))
+                        --csar.logInfo(string.format("Schedule Respawn %s %s",_heliName,_woundedName))
                         -- queue up script
                         -- Schedule timer to check when to pop smoke
                           
@@ -417,7 +478,7 @@ function csar.eventHandler:onEvent(_event)
 
         if _event.initiator:getName() and _event.initiator:getPlayerName() then
 
-            env.info("Checking Unit - " .. _event.initiator:getName())
+            csar.logInfo("Checking Unit - " .. _event.initiator:getName())
             csar.checkDisabledAircraftStatus({ _event.initiator:getName(), _event.initiator:getPlayerName() })
         end
 
@@ -426,7 +487,7 @@ function csar.eventHandler:onEvent(_event)
         elseif (_event.id == 9 and csar.csarOncrash == false) then
             -- Pilot dead
 
-            env.info("Event unit - Pilot Dead")
+            csar.logInfo("Event unit - Pilot Dead")
 
             local _unit = _event.initiator
 
@@ -454,7 +515,7 @@ function csar.eventHandler:onEvent(_event)
                 trigger.action.outTextForCoalition(_unit:getCoalition(), "MAYDAY MAYDAY! " .. _unit:getTypeName() .. " shot down. No Chute!", 10)
                 csar.handleEjectOrCrash(_unit, true)
             else
-                env.info("Pilot Hasnt taken off, ignore")
+                csar.logInfo("Pilot Hasnt taken off, ignore")
             end
 
             return
@@ -463,7 +524,7 @@ function csar.eventHandler:onEvent(_event)
             if _event.id == 9 and csar.csarOncrash == false then 
                 return     
             end
-            env.info("Event unit - Pilot Ejected")
+            csar.logInfo("Event unit - Pilot Ejected")
 
             local _unit = _event.initiator
 
@@ -489,7 +550,7 @@ function csar.eventHandler:onEvent(_event)
             end
 
             if csar.takenOff[_event.initiator:getName()] ~= true and not _unit:inAir() then
-                env.info("Pilot Hasnt taken off, ignore")
+                csar.logInfo("Pilot Hasnt taken off, ignore")
                 return -- give up, pilot hasnt taken off
             end
 
@@ -512,12 +573,12 @@ function csar.eventHandler:onEvent(_event)
 
             if csar.allowFARPRescue then
 
-                --env.info("Landing")
+                --csar.logInfo("Landing")
 
                 local _unit = _event.initiator
 
                 if _unit == nil then
-                    env.info("Unit Nil on Landing")
+                    csar.logInfo("Unit Nil on Landing")
                     return -- error!
                 end
 
@@ -526,19 +587,19 @@ function csar.eventHandler:onEvent(_event)
                 local _place = _event.place
 
                 if _place == nil then
-                    env.info("Landing Place Nil")
+                    csar.logInfo("Landing Place Nil")
                     return -- error!
                 end
                 -- Coalition == 3 seems to be a bug... unless it means contested?!
                 if _place:getCoalition() == _unit:getCoalition() or _place:getCoalition() == 0 or _place:getCoalition() == 3 then
                     csar.rescuePilots(_unit)
-                    --env.info("Rescued")
-                    --   env.info("Rescued by Landing")
+                    --csar.logInfo("Rescued")
+                    --   csar.logInfo("Rescued by Landing")
 
                 else
-                    --    env.info("Cant Rescue ")
+                    --    csar.logInfo("Cant Rescue ")
 
-                    env.info(string.format("airfield %d, unit %d", _place:getCoalition(), _unit:getCoalition()))
+                    csar.logInfo(string.format("airfield %d, unit %d", _place:getCoalition(), _unit:getCoalition()))
                 end
             end
 
@@ -558,7 +619,7 @@ function csar.doubleEjection(_unit)
         local _time = csar.lastCrash[_unit:getName()]
 
         if timer.getTime() - _time < 10 then
-            env.info("Caught double ejection!")
+            csar.logInfo("Caught double ejection!")
             return true
         end
     end
@@ -596,7 +657,7 @@ function csar.handleEjectOrCrash(_unit, _crashed)
 
             trigger.action.setUserFlag("CSAR_AIRCRAFT" .. _unit:getID(), 100)
 
-            env.info("Unit Disabled: " .. _unit:getName() .. " ID:" .. _unit:getID())
+            csar.logInfo("Unit Disabled: " .. _unit:getName() .. " ID:" .. _unit:getID())
         end
 
     elseif csar.csarMode == 2 then -- disable aircraft for pilot
@@ -621,7 +682,7 @@ function csar.handleEjectOrCrash(_unit, _crashed)
         -- strip special characters from name gsub('%W','')
         trigger.action.setUserFlag("CSAR_AIRCRAFT" .. _unit:getPlayerName():gsub('%W', '') .. "_" .. _unit:getID(), 100)
 
-        env.info("Unit Disabled for player : " .. _unit:getName())
+        csar.logInfo("Unit Disabled for player : " .. _unit:getName())
     end
 
     elseif csar.csarMode == 3 then -- No Disable - Just reduce player lives
@@ -1487,7 +1548,7 @@ function csar.rescuePilots(_heliUnit)
 
     csar.displayMessageToSAR(_heliUnit, _txt, 10)
 
-    -- env.info("Rescued")
+    -- csar.logInfo("Rescued")
 end
 
 
@@ -1524,7 +1585,7 @@ function csar.delayedHelpMessage(_args)
             end
 
         else
-            env.info("No Active Heli or Group DEAD")
+            csar.logInfo("No Active Heli or Group DEAD")
         end
     end, _args)
 
@@ -1719,7 +1780,7 @@ function csar.displayToAllSAR(_message, _side, _ignore)
                 csar.displayMessageToSAR(_unit, _message, 10)
             end
         else
-            -- env.info(string.format("unit nil %s",_unitName))
+            -- csar.logInfo(string.format("unit nil %s",_unitName))
         end
     end
 end
@@ -1935,7 +1996,7 @@ function csar.addMedevacMenuItem()
                 end
             end
         else
-            -- env.info(string.format("unit nil %s",_unitName))
+            -- csar.logInfo(string.format("unit nil %s",_unitName))
         end
     end
 
@@ -2142,6 +2203,16 @@ function csar.getGroupId(_unit)
     return nil
 end
 
+function csar.initialize(force)
+    csar.logInfo(string.format("Initializing version %s", csar.Version))
+    csar.logTrace(string.format("csar.alreadyInitialized=%s", csar.p(csar.alreadyInitialized)))
+    csar.logTrace(string.format("force=%s", csar.p(force)))
+
+    if csar.alreadyInitialized and not force then
+        csar.logInfo(string.format("Bypassing initialization because csar.alreadyInitialized = true"))
+        return
+    end
+
 csar.generateVHFrequencies()
 
 -- Schedule timer to add radio item
@@ -2154,7 +2225,7 @@ end
 
 world.addEventHandler(csar.eventHandler)
 
-env.info("CSAR event handler added")
+    csar.logInfo("CSAR event handler added")
 
 --save CSAR MODE
 trigger.action.setUserFlag("CSAR_MODE", csar.csarMode)
@@ -2164,5 +2235,18 @@ if csar.enableSlotBlocking then
 
     trigger.action.setUserFlag("CSAR_SLOTBLOCK", 100)
 
-    env.info("CSAR Slot block enabled")
+        csar.logInfo("CSAR Slot block enabled")
+    end
+end
+
+-- initialize the random number generator to make it almost random
+math.random(); math.random(); math.random()
+
+--- Enable/Disable error boxes displayed on screen.
+env.setErrorMessageBoxEnabled(false)
+
+-- initialize CSAR only out of a VEAF mission
+if not veaf then
+    csar.logInfo(string.format("Loading version %s", csar.Version))
+    csar.initialize()
 end

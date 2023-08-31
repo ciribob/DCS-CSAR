@@ -476,7 +476,8 @@ function csar.eventHandler:onEvent(_event)
             end
         end
 
-        if _event.initiator:getName() and _event.initiator:getPlayerName() then
+        -- sometimes the "getPlayerName" function is not defined in the _event.initiator object (not a player unit) ; check for it.
+        if _event.initiator.getName and _event.initiator:getName() and _event.initiator.getPlayerName and _event.initiator:getPlayerName() then
 
             csar.logInfo("Checking Unit - " .. _event.initiator:getName())
             csar.checkDisabledAircraftStatus({ _event.initiator:getName(), _event.initiator:getPlayerName() })
